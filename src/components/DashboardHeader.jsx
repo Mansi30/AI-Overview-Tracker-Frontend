@@ -1,9 +1,36 @@
-import React from 'react';
-import { LogOut, BarChart3, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LogOut, BarChart3, Settings, Shield, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 export const DashboardHeader = () => {
   const { user, logout } = useAuth();
+  const [userRole, setUserRole] = useState('user');
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+      
+      try {
+        // Find user document by email to get role
+        const usersCollection = collection(db, 'users');
+        const usersSnapshot = await getDocs(usersCollection);
+        
+        for (const userDoc of usersSnapshot.docs) {
+          const userData = userDoc.data();
+          if (userData.email === user.email) {
+            setUserRole(userData.role || 'user');
+            break;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -29,7 +56,23 @@ export const DashboardHeader = () => {
         <div className="flex items-center gap-6">
           {/* User Info */}
           <div className="text-right">
-            <p className="text-sm text-primary-100">Admin User</p>
+            <div className="flex items-center gap-2 justify-end mb-1">
+              {userRole === 'admin' ? (
+                <>
+                  <Shield size={16} className="text-yellow-300" />
+                  <span className="text-xs px-2 py-1 bg-yellow-500 bg-opacity-30 rounded font-semibold">
+                    ADMIN
+                  </span>
+                </>
+              ) : (
+                <>
+                  <User size={16} className="text-blue-300" />
+                  <span className="text-xs px-2 py-1 bg-blue-500 bg-opacity-30 rounded font-semibold">
+                    USER
+                  </span>
+                </>
+              )}
+            </div>
             <p className="font-medium text-white">{user?.email}</p>
           </div>
 

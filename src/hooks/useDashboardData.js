@@ -1,24 +1,64 @@
 import { useState, useEffect } from 'react';
-import { collectionGroup, getDocs } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { collectionGroup, getDocs, collection, doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '../firebaseConfig';
 
 export const useDashboardData = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // Fetch ALL events from ALL users using collection group
-        const eventsSnapshot = await getDocs(collectionGroup(db, 'events'));
-        const events = eventsSnapshot.docs.map(doc => ({
-          ...doc.data(),
-          docId: doc.id,
-          userId: doc.ref.parent.parent?.id || 'unknown' // Extract user ID from path
-        }));
+        // Get current user and their role
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('Not authenticated');
+        }
+
+        // Use Firebase Auth UID directly as the userId
+        const currentUserId = currentUser.uid;
+        
+        // Try to get user document to fetch role
+        const userDocRef = doc(db, 'users', currentUserId);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        let role = 'user'; // default
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          role = userData.role || 'user';
+        }
+
+        setUserRole(role);
+
+        console.log('Dashboard loading for user:', currentUserId, 'Role:', role);
+
+        // Fetch events based on role
+        let events = [];
+        
+        if (role === 'admin') {
+          // Admin: Fetch ALL events from ALL users using collection group
+          const eventsSnapshot = await getDocs(collectionGroup(db, 'events'));
+          events = eventsSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            docId: doc.id,
+            userId: doc.ref.parent.parent?.id || 'unknown' // Extract user ID from path
+          }));
+        } else {
+          // Regular user: Fetch only their own events
+          if (currentUserId) {
+            const userEventsCollection = collection(db, 'users', currentUserId, 'events');
+            const userEventsSnapshot = await getDocs(userEventsCollection);
+            events = userEventsSnapshot.docs.map(doc => ({
+              ...doc.data(),
+              docId: doc.id,
+              userId: currentUserId
+            }));
+          }
+        }
 
         // Calculate statistics
         const aiOverviewEvents = events.filter(e => e.event_type === 'ai_overview_shown');
@@ -114,22 +154,24 @@ export const useDashboardData = () => {
           ? (timeToClicks.reduce((a, b) => a + b) / timeToClicks.length / 1000).toFixed(1)
           : 0;
 
-        // 🆕 Group events by user
+        // 🆕 Group events by user (only for admin)
         const eventsByUser = {};
-        events.forEach(e => {
-          const userId = e.userId || 'unknown';
-          if (!eventsByUser[userId]) {
-            eventsByUser[userId] = [];
-          }
-          eventsByUser[userId].push(e);
-        });
+        if (role === 'admin') {
+          events.forEach(e => {
+            const userId = e.userId || 'unknown';
+            if (!eventsByUser[userId]) {
+              eventsByUser[userId] = [];
+            }
+            eventsByUser[userId].push(e);
+          });
 
-        // Sort each user's events by timestamp (newest first)
-        Object.keys(eventsByUser).forEach(userId => {
-          eventsByUser[userId].sort((a, b) => 
-            new Date(b.timestamp) - new Date(a.timestamp)
-          );
-        });
+          // Sort each user's events by timestamp (newest first)
+          Object.keys(eventsByUser).forEach(userId => {
+            eventsByUser[userId].sort((a, b) => 
+              new Date(b.timestamp) - new Date(a.timestamp)
+            );
+          });
+        }
 
         // 🆕 Group events by topic
         const eventsByTopic = {};
@@ -162,8 +204,10 @@ export const useDashboardData = () => {
           avgTimeToClick,
           totalEvents: events.length,
           recentEvents: events.slice(-50).reverse(), // Show more recent events
-          eventsByUser, // 🆕 NEW!
-          eventsByTopic  // 🆕 NEW!
+          eventsByUser: role === 'admin' ? eventsByUser : {}, // Only for admin
+          eventsByTopic,
+          userRole: role,
+          currentUserId: currentUserId
         });
 
         setError(null);
@@ -175,8 +219,17 @@ export const useDashboardData = () => {
       }
     };
 
-    fetchData();
+    // Only fetch if user is authenticated
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        fetchData();
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  return { stats, loading, error };
+  return { stats, loading, error, userRole };
 };

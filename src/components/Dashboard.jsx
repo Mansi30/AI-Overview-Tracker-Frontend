@@ -11,7 +11,7 @@ import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 export const Dashboard = () => {
-  const { stats, loading, error } = useDashboardData();
+  const { stats, loading, error, userRole } = useDashboardData();
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -381,16 +381,18 @@ export const Dashboard = () => {
                 >
                   📋 All Events
                 </button>
-                <button
-                  onClick={() => setTimelineView('byUser')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    timelineView === 'byUser'
-                      ? 'bg-primary-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  👤 By User
-                </button>
+                {userRole === 'admin' && (
+                  <button
+                    onClick={() => setTimelineView('byUser')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                      timelineView === 'byUser'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    👤 By User
+                  </button>
+                )}
                 <button
                   onClick={() => setTimelineView('byTopic')}
                   className={`px-4 py-2 rounded-lg font-semibold transition-all ${
