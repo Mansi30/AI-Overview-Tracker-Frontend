@@ -5,10 +5,12 @@ import {
 } from 'recharts';
 import {
   Search, Link, Clock, Zap,
-  RefreshCw, Eye, MousePointerClick, ExternalLink, X
+  RefreshCw, Eye, MousePointerClick, ExternalLink, X, Trash2
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { db } from '../firebaseConfig';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 export const Dashboard = () => {
   const { stats, loading, error, userRole } = useDashboardData();
@@ -18,6 +20,34 @@ export const Dashboard = () => {
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [timelineView, setTimelineView] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [deletingEventId, setDeletingEventId] = useState(null);
+
+  const handleDeleteEvent = async (event, e) => {
+    e.stopPropagation(); // Prevent event card click
+    
+    const confirmMessage = `Are you sure you want to delete this event?\n\n` +
+      `Type: ${event.event_type}\n` +
+      `Query: "${event.query}"\n` +
+      `Date: ${new Date(event.timestamp).toLocaleString()}\n\n` +
+      `This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      setDeletingEventId(event.docId);
+      
+      // Delete from Firestore
+      const eventDocRef = doc(db, 'users', event.userId, 'events', event.docId);
+      await deleteDoc(eventDocRef);
+      
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      alert('Failed to delete event. Please try again.');
+      setDeletingEventId(null);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -459,9 +489,27 @@ export const Dashboard = () => {
                               </p>
                             )}
                           </div>
-                          <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                            {new Date(event.timestamp).toLocaleString()}
-                          </span>
+                          <div className="flex items-center gap-2 ml-4">
+                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                              {new Date(event.timestamp).toLocaleString()}
+                            </span>
+                            <button
+                              onClick={(e) => handleDeleteEvent(event, e)}
+                              disabled={deletingEventId === event.docId}
+                              className={`p-2 rounded-lg transition-all ${
+                                deletingEventId === event.docId
+                                  ? 'bg-gray-200 cursor-not-allowed'
+                                  : 'bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700'
+                              }`}
+                              title="Delete this event"
+                            >
+                              {deletingEventId === event.docId ? (
+                                <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                              ) : (
+                                <Trash2 size={16} />
+                              )}
+                            </button>
+                          </div>
                         </div>
                         {event.cited_sources && event.cited_sources.length > 0 && (
                           <div className="mt-3 text-sm">
