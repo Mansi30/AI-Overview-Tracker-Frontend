@@ -94,17 +94,17 @@ export const Dashboard = () => {
   }
 
   const topicColors = {
-    technology: '#0ea5e9',
-    business: '#f59e0b',
-    politics: '#ef4444',
-    entertainment: '#ec4899',
-    sports: '#10b981',
-    health: '#06b6d4',
-    science: '#8b5cf6',
-    finance: '#14b8a6',
-    education: '#f97316',
-    travel: '#a855f7',
-    general: '#64748b'
+    technology: '#3b82f6',    // Bright Blue
+    business: '#f59e0b',      // Amber/Orange
+    politics: '#ef4444',      // Red
+    entertainment: '#ec4899', // Pink
+    sports: '#10b981',        // Green
+    health: '#06b6d4',        // Cyan
+    science: '#8b5cf6',       // Purple
+    finance: '#059669',       // Emerald Green
+    education: '#f97316',     // Orange
+    travel: '#a855f7',        // Violet
+    general: '#64748b'        // Gray
   };
 
   const topicIcons = {
