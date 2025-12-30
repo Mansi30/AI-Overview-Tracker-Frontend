@@ -79,11 +79,11 @@ exports.classifyTopic = functions.https.onRequest(async (request, response) => {
         'X-Title': 'AI Overview Tracker Extension'
       },
       body: JSON.stringify({
-        model: 'qwen/qwen-2.5-7b-instruct',
+        model: 'openai/gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a multilingual topic classifier. Classify search queries into exactly one of these categories: technology, business, politics, entertainment, sports, health, science, finance, education, travel, general. Respond with ONLY the category name, nothing else. Support all languages including Hindi, Urdu, Tagalog, Filipino, etc.'
+            content: 'You are a multilingual topic classifier with expert support for Indonesian, Filipino (Tagalog), and Hindi, as well as English and other languages. Classify search queries into exactly one of these categories: technology, business, politics, entertainment, sports, health, science, finance, education, travel, general. Respond with ONLY the category name in English, nothing else. Ensure accurate classification regardless of the input language.'
           },
           {
             role: 'user',
