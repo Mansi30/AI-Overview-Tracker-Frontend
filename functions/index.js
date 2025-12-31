@@ -83,15 +83,21 @@ exports.classifyTopic = functions.https.onRequest(async (request, response) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a multilingual topic classifier with expert support for Indonesian, Filipino (Tagalog), and Hindi, as well as English and other languages. Classify search queries into exactly one of these categories: technology, business, politics, entertainment, sports, health, science, finance, education, travel, general. Respond with ONLY the category name in English, nothing else. Ensure accurate classification regardless of the input language.'
+            content: `You are provided user generated search queries which may be in either English, Tagalog, Filipino, Hindi, or another language. You must first identify the language including if it is code-switched (uses multiple languages), after which you must translate it into English (if it is not already in English). Finally you must assign a relevant category to it so that we can group queries belonging to the same categories.
+
+Provide the category you suggest the query belongs to in your response, the english language translation of the user query provided to you, and the detected language that the query was originally provided in. If the query is already in English, you may use "null" in place of the translation and state the language is "English", otherwise you should use "Filipino", "Tagalog", "Hindi", or any other language that the query was originally provided in.
+
+You must only use the following response format, returning a 3-element array where each element is a string: [category, english_translation, language_detected]
+
+Valid categories: technology, business, politics, entertainment, sports, health, science, finance, education, travel, general`
           },
           {
             role: 'user',
-            content: `Classify this search query into one category: "${query}"\n\nCategory:`
+            content: `Classify this search query: "${query}"`
           }
         ],
         temperature: 0.1,
-        max_tokens: 20
+        max_tokens: 100
       })
     });
 
@@ -103,20 +109,44 @@ exports.classifyTopic = functions.https.onRequest(async (request, response) => {
     }
 
     const data = await openrouterResponse.json();
-    const topic = data.choices?.[0]?.message?.content?.trim().toLowerCase();
+    const rawContent = data.choices?.[0]?.message?.content?.trim();
 
-    // Validate topic is one of the allowed categories
+    // Parse the LLM response as JSON array: [category, english_translation, language_detected]
+    let category, translation, language;
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (Array.isArray(parsed) && parsed.length === 3) {
+        [category, translation, language] = parsed;
+        category = category.toLowerCase().trim();
+        translation = translation === 'null' ? null : translation;
+        language = language.trim();
+      } else {
+        throw new Error('Invalid array format');
+      }
+    } catch (parseError) {
+      console.warn('Failed to parse LLM response:', rawContent, parseError);
+      // Fallback parsing: try to extract category from text
+      category = 'general';
+      translation = null;
+      language = 'unknown';
+    }
+
+    // Validate category is one of the allowed categories
     const validTopics = [
       'technology', 'business', 'politics', 'entertainment', 'sports',
       'health', 'science', 'finance', 'education', 'travel', 'general'
     ];
 
-    if (validTopics.includes(topic)) {
-      response.status(200).json({ topic });
-    } else {
-      console.warn('LLM returned invalid topic:', topic, 'for query:', query);
-      response.status(200).json({ topic: 'general' }); // Fallback to general
+    if (!validTopics.includes(category)) {
+      console.warn('LLM returned invalid category:', category, 'for query:', query);
+      category = 'general'; // Fallback to general
     }
+
+    response.status(200).json({ 
+      topic: category,
+      translation: translation,
+      language: language
+    });
 
   } catch (error) {
     console.error('Error in classifyTopic function:', error);
