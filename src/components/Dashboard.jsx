@@ -21,6 +21,11 @@ export const Dashboard = () => {
   const [timelineView, setTimelineView] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [deletingEventId, setDeletingEventId] = useState(null);
+  const [dwellMinSec, setDwellMinSec] = useState(0);
+  const [dwellSort, setDwellSort] = useState('avgDesc');
+  const [dwellSearch, setDwellSearch] = useState('');
+  const [dwellPage, setDwellPage] = useState(1);
+  const [dwellPageSize] = useState(10);
 
   const handleDeleteEvent = async (event, e) => {
     e.stopPropagation(); // Prevent event card click
@@ -186,6 +191,20 @@ export const Dashboard = () => {
                 subtitle="User interactions"
                 color="orange"
               />
+              <StatCard
+                icon={Clock}
+                title="Avg Dwell Time"
+                value={`${stats?.avgDwellTimeSec || 0}s`}
+                subtitle="Focus time on citation destinations"
+                color="purple"
+              />
+              <StatCard
+                icon={MousePointerClick}
+                title="Dwell Events"
+                value={stats?.totalDwellEvents || 0}
+                subtitle="Recorded dwell time measurements"
+                color="green"
+              />
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -314,6 +333,34 @@ export const Dashboard = () => {
                 💡 <strong>Tip:</strong> Click "View All URLs" to see every citation URL for that domain.
               </p>
             </div>
+
+            {/* Domain dwell details modal-ish panel */}
+            {selectedDomain && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Dwell times for {selectedDomain.domain}</h3>
+                  <button className="text-sm text-gray-500" onClick={() => setSelectedDomain(null)}>Close</button>
+                </div>
+                {selectedDomain.dwell && selectedDomain.dwell.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedDomain.dwell.map((d, idx) => (
+                      <div key={idx} className="p-3 bg-gray-50 rounded flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Query: {d.query}</p>
+                          <p className="text-xs text-gray-500">URL: {d.url}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">{d.avgDwellSec}s</p>
+                          <p className="text-xs text-gray-500">{d.count} visits • {new Date(d.lastTs).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No dwell data available for this domain.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -432,6 +479,16 @@ export const Dashboard = () => {
                   }`}
                 >
                   🏷️ By Topic
+                </button>
+                <button
+                  onClick={() => setTimelineView('byDwell')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    timelineView === 'byDwell'
+                      ? 'bg-primary-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  ⏱️ Dwell by Query
                 </button>
               </div>
             </div>
@@ -840,6 +897,138 @@ export const Dashboard = () => {
                     <p className="text-gray-500 text-center py-8">No topic data available</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* BY DWELL VIEW */}
+            {timelineView === 'byDwell' && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">⏱️ Dwell Time by Query</h3>
+
+                <div className="flex items-center gap-4 mb-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-700">Min dwell (s)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={dwellMinSec}
+                      onChange={(e) => setDwellMinSec(Number(e.target.value || 0))}
+                      className="w-24 px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-700">Sort</label>
+                    <select
+                      value={dwellSort}
+                      onChange={(e) => setDwellSort(e.target.value)}
+                      className="px-3 py-2 border rounded-lg"
+                    >
+                      <option value="avgDesc">Avg Dwell (high→low)</option>
+                      <option value="avgAsc">Avg Dwell (low→high)</option>
+                      <option value="countDesc">Count (high→low)</option>
+                      <option value="recentDesc">Last Seen (new→old)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-auto min-w-[220px]">
+                    <input
+                      type="search"
+                      placeholder="Search query, domain or URL"
+                      value={dwellSearch}
+                      onChange={(e) => { setDwellSearch(e.target.value); setDwellPage(1); }}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                  {stats?.dwellByQuery ? (
+                    (() => {
+                      // Flatten dwellByQuery into rows
+                      const rows = [];
+                      Object.keys(stats.dwellByQuery).forEach(query => {
+                        const domains = stats.dwellByQuery[query];
+                        Object.keys(domains).forEach(domain => {
+                          domains[domain].forEach(entry => {
+                            rows.push({ query, domain, url: entry.url, count: entry.count, avgDwellSec: entry.avgDwellSec, lastTs: entry.lastTs });
+                          });
+                        });
+                      });
+
+                      // Apply min filter + search
+                      const filtered = rows
+                        .filter(r => r.avgDwellSec >= dwellMinSec)
+                        .filter(r => {
+                          if (!dwellSearch) return true;
+                          const s = dwellSearch.toLowerCase();
+                          return (r.query || '').toLowerCase().includes(s)
+                            || (r.domain || '').toLowerCase().includes(s)
+                            || (r.url || '').toLowerCase().includes(s);
+                        });
+
+                      // Apply sorting
+                      filtered.sort((a, b) => {
+                        if (dwellSort === 'avgDesc') return b.avgDwellSec - a.avgDwellSec;
+                        if (dwellSort === 'avgAsc') return a.avgDwellSec - b.avgDwellSec;
+                        if (dwellSort === 'countDesc') return b.count - a.count;
+                        if (dwellSort === 'recentDesc') return new Date(b.lastTs) - new Date(a.lastTs);
+                        return 0;
+                      });
+
+                      if (filtered.length === 0) {
+                        return <p className="text-gray-500 text-center py-8">No dwell entries match the current filter.</p>;
+                      }
+
+                      // Pagination
+                      const total = filtered.length;
+                      const totalPages = Math.max(1, Math.ceil(total / dwellPageSize));
+                      const page = Math.min(Math.max(1, dwellPage), totalPages);
+                      const start = (page - 1) * dwellPageSize;
+                      const paged = filtered.slice(start, start + dwellPageSize);
+
+                      return (
+                        <>
+                          <div className="space-y-3">
+                            {paged.map((r, idx) => (
+                              <div key={idx} className="p-3 bg-gray-50 rounded-lg flex items-start justify-between gap-4 hover:bg-gray-100">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 truncate">{r.query}</p>
+                                  <p className="text-xs text-gray-500 truncate mt-1">{r.domain} • <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">Open URL</a></p>
+                                  <p className="text-xs text-gray-500 mt-1">Last Seen: {new Date(r.lastTs).toLocaleString()}</p>
+                                </div>
+                                <div className="w-40 text-right flex flex-col items-end gap-1">
+                                  <div className="text-sm font-semibold text-gray-900">{r.avgDwellSec}s</div>
+                                  <div className="text-xs text-gray-500">{r.count} visits</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Pagination controls */}
+                          <div className="mt-4 flex items-center justify-between">
+                            <div className="text-sm text-gray-600">Showing {start + 1}–{Math.min(start + dwellPageSize, total)} of {total}</div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setDwellPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className={`px-3 py-1 rounded-lg border ${page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                              >Prev</button>
+                              <div className="px-3 py-1 text-sm text-gray-700">{page} / {totalPages}</div>
+                              <button
+                                onClick={() => setDwellPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className={`px-3 py-1 rounded-lg border ${page === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                              >Next</button>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No dwell data available</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
