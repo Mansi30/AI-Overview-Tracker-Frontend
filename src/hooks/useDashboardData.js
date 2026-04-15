@@ -64,9 +64,13 @@ export const useDashboardData = () => {
         const aiOverviewEvents = events.filter(e => e.event_type === 'ai_overview_shown');
         const clickEvents = events.filter(e => e.event_type === 'citation_clicked');
         const dwellEvents = events.filter(e => e.event_type === 'citation_dwelled');
+        const journeyEvents = events.filter(e => e.event_type === 'navigation_journey');
+
         // The UI timeline supports ai_overview_shown / citation_clicked / search_without_ai_overview.
-        // Exclude citation_dwelled from those views to avoid confusing/empty details.
-        const displayEvents = events.filter(e => e.event_type !== 'citation_dwelled');
+        // Exclude citation_dwelled and navigation_journey from those views
+        const displayEvents = events.filter(e =>
+          e.event_type !== 'citation_dwelled' && e.event_type !== 'navigation_journey'
+        );
         const totalSearches = events.filter(e =>
           e.event_type === 'ai_overview_shown' || e.event_type === 'search_without_ai_overview'
         ).length;
@@ -261,7 +265,26 @@ export const useDashboardData = () => {
           eventsByUser: role === 'admin' ? eventsByUser : {}, // Only for admin
           eventsByTopic,
           userRole: role,
-          currentUserId: currentUserId
+          currentUserId: currentUserId,
+
+          // 🆕 Journey data
+          journeys: journeyEvents.map(e => ({
+            journey_id: e.journey_id,
+            query: e.query,
+            started_at: e.started_at,
+            ended_at: e.ended_at,
+            end_reason: e.end_reason,
+            navigation_tree: e.navigation_tree,
+            summary: e.summary,
+            root_citation: e.root_citation
+          })),
+          totalJourneys: journeyEvents.length,
+          avgJourneyDepth: journeyEvents.length > 0
+            ? (journeyEvents.reduce((sum, j) => sum + (j.summary?.max_depth || 0), 0) / journeyEvents.length).toFixed(1)
+            : 0,
+          avgJourneyPages: journeyEvents.length > 0
+            ? (journeyEvents.reduce((sum, j) => sum + (j.summary?.total_pages_visited || 0), 0) / journeyEvents.length).toFixed(1)
+            : 0
         });
 
         setError(null);

@@ -11,6 +11,7 @@ import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { db } from '../firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
+import CollapsibleJourneyTree from './CollapsibleJourneyTree';
 
 export const Dashboard = () => {
   const { stats, loading, error, userRole } = useDashboardData();
@@ -134,7 +135,7 @@ export const Dashboard = () => {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex gap-8 items-center">
           <div className="flex gap-4 flex-1">
-            {['overview', 'domains', 'topics', 'timeline'].map(tab => (
+            {['overview', 'domains', 'topics', 'timeline', 'journeys'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1029,6 +1030,209 @@ export const Dashboard = () => {
                     <p className="text-gray-500 text-center py-8">No dwell data available</p>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* JOURNEYS TAB */}
+        {activeTab === 'journeys' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatCard
+                icon={Search}
+                title="Total Journeys"
+                value={stats?.totalJourneys || 0}
+                subtitle="Navigation paths tracked"
+                color="blue"
+              />
+              <StatCard
+                icon={Link}
+                title="Avg Journey Depth"
+                value={stats?.avgJourneyDepth || 0}
+                subtitle="Average navigation levels"
+                color="purple"
+              />
+              <StatCard
+                icon={MousePointerClick}
+                title="Avg Pages per Journey"
+                value={stats?.avgJourneyPages || 0}
+                subtitle="Pages visited per journey"
+                color="green"
+              />
+            </div>
+
+            {/* JOURNEY ANALYTICS CHARTS */}
+            {stats?.journeys && stats.journeys.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Journey Depth Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Journey Depth Distribution</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const depthCounts = {};
+                      stats.journeys.forEach(j => {
+                        const depth = j.summary?.max_depth || 0;
+                        depthCounts[depth] = (depthCounts[depth] || 0) + 1;
+                      });
+                      return Object.entries(depthCounts)
+                        .map(([depth, count]) => ({ depth: `${depth} level${depth > 1 ? 's' : ''}`, count }))
+                        .sort((a, b) => parseInt(a.depth) - parseInt(b.depth));
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="depth" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Shows how many navigation levels users explored in their journeys
+                  </p>
+                </div>
+
+                {/* Top Citation Domains by Exploration */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🔗 Top Citation Domains</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const domainCounts = {};
+                      stats.journeys.forEach(j => {
+                        const domain = j.root_citation?.domain || 'unknown';
+                        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+                      });
+                      return Object.entries(domainCounts)
+                        .map(([domain, count]) => ({ domain, count }))
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 8);
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="domain" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Which citation domains lead to the most user exploration
+                  </p>
+                </div>
+
+                {/* Journey Duration Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">⏱️ Journey Duration</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const buckets = {
+                        '0-30s': 0,
+                        '30s-1m': 0,
+                        '1-2m': 0,
+                        '2-5m': 0,
+                        '5m+': 0
+                      };
+                      stats.journeys.forEach(j => {
+                        const seconds = (j.summary?.total_journey_time_ms || 0) / 1000;
+                        if (seconds < 30) buckets['0-30s']++;
+                        else if (seconds < 60) buckets['30s-1m']++;
+                        else if (seconds < 120) buckets['1-2m']++;
+                        else if (seconds < 300) buckets['2-5m']++;
+                        else buckets['5m+']++;
+                      });
+                      return Object.entries(buckets).map(([range, count]) => ({ range, count }));
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="range" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#f59e0b" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    How long users spend on their navigation journeys
+                  </p>
+                </div>
+
+                {/* Pages per Journey Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📄 Pages per Journey</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const pageCounts = {};
+                      stats.journeys.forEach(j => {
+                        const pages = j.summary?.total_pages_visited || 0;
+                        const bucket = pages > 5 ? '6+' : `${pages}`;
+                        pageCounts[bucket] = (pageCounts[bucket] || 0) + 1;
+                      });
+                      return Object.entries(pageCounts)
+                        .map(([pages, count]) => ({ pages: `${pages} page${pages !== '1' ? 's' : ''}`, count }))
+                        .sort((a, b) => {
+                          const aNum = a.pages === '6+ pages' ? 6 : parseInt(a.pages);
+                          const bNum = b.pages === '6+ pages' ? 6 : parseInt(b.pages);
+                          return aNum - bNum;
+                        });
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="pages" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#8b5cf6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Distribution of how many pages users visit per journey
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <h2 className="text-2xl font-bold text-gray-900">🗺️ User Journeys</h2>
+
+            {stats?.journeys && stats.journeys.length > 0 ? (
+              <div className="space-y-6">
+                {stats.journeys.slice(0, 10).map((journey, idx) => (
+                  <div key={idx} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Journey #{stats.journeys.length - idx}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Query: <span className="font-medium">"{journey.query}"</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Started: {new Date(journey.started_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-semibold">
+                          {journey.end_reason || 'completed'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Journey Tree */}
+                    <CollapsibleJourneyTree journeyData={journey} />
+                  </div>
+                ))}
+
+                {stats.journeys.length > 10 && (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500">
+                      Showing 10 most recent journeys out of {stats.journeys.length} total
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-6xl mb-4">🗺️</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Journey Data Yet</h3>
+                <p className="text-gray-600">
+                  Journeys will appear here when users click citations and navigate through multiple pages.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Try clicking a citation from AI Overview and browsing through the site!
+                </p>
               </div>
             )}
           </div>
