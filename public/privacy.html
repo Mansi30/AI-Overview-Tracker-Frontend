@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - AI Overview Tracker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.7;
+      color: #333;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 50px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #667eea;
+      font-size: 2.8em;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 1em;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #667eea;
+    }
+    h2 {
+      color: #333;
+      font-size: 1.6em;
+      margin-top: 40px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2:before {
+      content: "▸";
+      color: #667eea;
+      font-size: 1.2em;
+    }
+    p {
+      margin-bottom: 18px;
+      color: #444;
+      font-size: 1.05em;
+    }
+    ul, ol {
+      margin-bottom: 20px;
+      padding-left: 30px;
+    }
+    li {
+      margin-bottom: 12px;
+      color: #444;
+      line-height: 1.8;
+    }
+    strong {
+      color: #333;
+      font-weight: 600;
+    }
+    a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s;
+    }
+    a:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+    .highlight-box {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 8px;
+    }
+    .highlight-box h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+    }
+    .footer {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 2px solid #e0e0e0;
+      text-align: center;
+      color: #666;
+    }
+    .footer p {
+      margin-bottom: 10px;
+    }
+    .contact-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-top: 40px;
+      text-align: center;
+    }
+    .contact-box a {
+      color: white;
+      font-size: 1.1em;
+      text-decoration: underline;
+    }
+    .emoji {
+      font-size: 1.2em;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Privacy Policy</h1>
+    <p class="subtitle">AI Overview Tracker | Last updated: November 11, 2025</p>
+
+    <div class="highlight-box">
+      <h3>📌 Quick Summary</h3>
+      <p><strong>Your data is YOURS.</strong> Everything is stored in your personal Firebase database. We cannot access, view, or share your data. Period.</p>
+    </div>
+
+    <h2>1. Overview</h2>
+    <p>AI Overview Tracker is a Chrome extension and analytics dashboard built for researchers, SEO professionals, and content creators to analyze Google's AI Overview citations. This privacy policy explains how we handle your data with complete transparency.</p>
+    <p><strong>Developer:</strong> Aditya Dubey / SimPPL</p>
+
+    <h2>2. What Data We Collect</h2>
+    <p>Our extension collects the following data when you use Google Search:</p>
+    <ul>
+      <li><span class="emoji">🔍</span><strong>Search Queries:</strong> The text you enter in Google Search (to detect AI Overview appearances)</li>
+      <li><span class="emoji">🔗</span><strong>Citation Data:</strong> URLs, domains, and titles of sources cited in AI Overviews</li>
+      <li><span class="emoji">🖱️</span><strong>Click Events:</strong> Which citations you click, timestamps, and time-to-click metrics</li>
+      <li><span class="emoji">🏷️</span><strong>Query Metadata:</strong> Automatically categorized topics (technology, health, finance, etc.) and query intent</li>
+      <li><span class="emoji">📊</span><strong>Session Data:</strong> Session IDs for grouping related searches</li>
+      <li><span class="emoji">🤖</span><strong>AI Response Text:</strong> The full text of AI Overview responses for analysis</li>
+    </ul>
+
+    <h2>3. How Data is Stored</h2>
+    <p>Your data is stored in <strong>two locations</strong>, both under your complete control:</p>
+    <ol>
+      <li><strong>Chrome Local Storage:</strong> Temporarily cached in your browser (<code>chrome.storage.local</code>) for offline access and performance</li>
+      <li><strong>Firebase Firestore:</strong> Synced to your <em>personal</em> Firebase database for persistence and cross-device access</li>
+    </ol>
+    
+    <div class="highlight-box">
+      <h3>🔐 Critical Privacy Point</h3>
+      <p>All data resides in <strong>YOUR Firebase project</strong>. We (the developers) do not have access to your database. Your Firebase credentials are stored locally in your extension only.</p>
+    </div>
+
+    <h2>4. How We Use Your Data</h2>
+    <p>We use collected data <strong>exclusively</strong> to:</p>
+    <ul>
+      <li>Display analytics and insights in your personal dashboard</li>
+      <li>Calculate citation statistics (CTR, engagement metrics, domain rankings)</li>
+      <li>Show search trends and patterns over time</li>
+      <li>Categorize queries by topic and intent</li>
+      <li>Track user engagement with citations</li>
+      <li>Generate visualizations (charts, graphs, timelines)</li>
+    </ul>
+    <p><strong>That's it.</strong> No other purposes. No hidden uses.</p>
+
+    <h2>5. What We DON'T Do</h2>
+    <div class="highlight-box">
+      <p><strong>We absolutely do NOT:</strong></p>
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li>❌ Share your data with any third parties</li>
+        <li>❌ Sell your data to advertisers or data brokers</li>
+        <li>❌ Use your data for advertising purposes</li>
+        <li>❌ Track you across other websites</li>
+        <li>❌ Access your personal Firebase database</li>
+        <li>❌ Collect data when the extension is disabled</li>
+        <li>❌ Store data on our servers (we don't have any!)</li>
+        <li>❌ Analyze your data in aggregate</li>
+      </ul>
+    </div>
+
+    <h2>6. Your Rights & Control</h2>
+    <p>You have <strong>complete control</strong> over your data:</p>
+    <ul>
+      <li><span class="emoji">👁️</span><strong>View:</strong> Access all tracked data in the analytics dashboard</li>
+      <li><span class="emoji">🗑️</span><strong>Delete:</strong> Clear all data from extension settings or Firebase Console</li>
+      <li><span class="emoji">⚙️</span><strong>Configure:</strong> Set data retention period (7, 15, 30, or 90 days)</li>
+      <li><span class="emoji">📥</span><strong>Export:</strong> Download your data from Firebase Console anytime</li>
+      <li><span class="emoji">🛑</span><strong>Stop Tracking:</strong> Disable or uninstall the extension to stop data collection immediately</li>
+      <li><span class="emoji">🔒</span><strong>Control Access:</strong> Configure Firebase security rules as you see fit</li>
+    </ul>
+
+    <h2>7. Data Security</h2>
+    <p>Your data is protected by multiple layers of security:</p>
+    <ul>
+      <li><strong>Firebase Security:</strong> Enterprise-grade Google Cloud infrastructure</li>
+      <li><strong>HTTPS Encryption:</strong> All data transfers use SSL/TLS encryption</li>
+      <li><strong>Firestore Security Rules:</strong> Configurable access controls (managed by you)</li>
+      <li><strong>Local Storage:</strong> Chrome's secure storage APIs</li>
+      <li><strong>No Central Database:</strong> No single point of failure or data breach risk</li>
+    </ul>
+
+    <h2>8. Third-Party Services</h2>
+    <p>This extension integrates with the following third-party services:</p>
+    <ul>
+      <li><strong>Google Firebase:</strong> For data storage, hosting, and authentication (<a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase Privacy Policy</a>)</li>
+      <li><strong>Google Search:</strong> Extension runs only on Google Search pages (no data shared with Google)</li>
+    </ul>
+    <p><strong>We do NOT integrate with:</strong> Advertising networks, analytics platforms (e.g., Google Analytics), tracking services, or any other third-party data collectors.</p>
+
+    <h2>9. Data Retention</h2>
+    <p>Data retention is <strong>controlled entirely by you</strong>:</p>
+    <ul>
+      <li><strong>Default:</strong> 90 days</li>
+      <li><strong>Configurable Options:</strong> 7, 15, 30, or 90 days</li>
+      <li><strong>Automatic Cleanup:</strong> Old events are automatically deleted based on your settings</li>
+      <li><strong>Manual Deletion:</strong> Delete all data anytime from extension settings</li>
+      <li><strong>Uninstall:</strong> Data remains in your Firebase (you control it), but new data stops being collected</li>
+    </ul>
+
+    <h2>10. Children's Privacy</h2>
+    <p>This extension is not intended for users under 13 years of age. We do not knowingly collect personal information from children. If you believe a child has provided data through this extension, please contact us immediately and we will provide guidance on data deletion.</p>
+
+    <h2>11. International Users</h2>
+    <p>This extension can be used globally. Your data is stored in Firebase's cloud infrastructure, which may be located in various regions. Firebase complies with international data protection regulations including GDPR and CCPA.</p>
+
+    <h2>12. Changes to This Policy</h2>
+    <p>We may update this privacy policy to reflect changes in our practices, legal requirements, or extension features. When we make changes:</p>
+    <ul>
+      <li>The "Last updated" date at the top will be revised</li>
+      <li>Significant changes will be announced in extension update notes</li>
+      <li>Continued use of the extension after changes constitutes acceptance</li>
+    </ul>
+
+    <h2>13. Your Consent</h2>
+    <p>By installing and using AI Overview Tracker, you consent to:</p>
+    <ul>
+      <li>This privacy policy and our data practices</li>
+      <li>Collection of data as described above</li>
+      <li>Storage of data in your personal Firebase database</li>
+    </ul>
+    <p>You can withdraw consent at any time by uninstalling the extension.</p>
+
+    <h2>14. Legal Compliance</h2>
+    <p>This extension complies with:</p>
+    <ul>
+      <li><strong>Chrome Web Store Developer Program Policies</strong></li>
+      <li><strong>General Data Protection Regulation (GDPR)</strong> - EU data protection principles</li>
+      <li><strong>California Consumer Privacy Act (CCPA)</strong> - California privacy rights</li>
+      <li><strong>Chrome Extension Manifest V3</strong> - Latest security standards</li>
+    </ul>
+
+    <h2>15. Open Source & Transparency</h2>
+    <p>We believe in transparency:</p>
+    <ul>
+      <li>Extension code uses standard Chrome APIs (no obfuscation)</li>
+      <li>All data collection is visible and documented</li>
+      <li>Firebase configuration is user-controlled</li>
+      <li>No hidden tracking or telemetry</li>
+    </ul>
+
+    <div class="contact-box">
+      <h2 style="color: white; margin-top: 0;">📧 Contact Us</h2>
+      <p style="color: white; margin-bottom: 20px;">Questions, concerns, or requests regarding this privacy policy?</p>
+      <p><strong>Email:</strong> <a href="mailto:adity.dubey1301@gmail.com">adity.dubey1301@gmail.com</a></p>
+      <p><strong>Dashboard:</strong> <a href="https://ai-overview-extension-de.web.app" target="_blank">ai-overview-extension-de.web.app</a></p>
+      <p><strong>Developer:</strong> Aditya Dubey / SimPPL</p>
+    </div>
+
+    <div class="footer">
+      <p style="font-size: 1.2em; font-weight: 600; color: #667eea;">AI Overview Tracker</p>
+      <p>Made with ❤️ by Aditya Dubey / SimPPL</p>
+      <p style="margin-top: 20px; font-size: 0.9em; color: #999;">
+        © 2025 AI Overview Tracker. All rights reserved.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
