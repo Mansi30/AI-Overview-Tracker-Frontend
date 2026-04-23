@@ -312,6 +312,10 @@ export const useDashboardData = () => {
         // Calculate statistics
         const aiOverviewEvents = events.filter(e => e.event_type === 'ai_overview_shown');
         const clickEvents = events.filter(e => e.event_type === 'citation_clicked');
+        const dwellEvents = events.filter(e => e.event_type === 'citation_dwelled');
+        // The UI timeline supports ai_overview_shown / citation_clicked / search_without_ai_overview.
+        // Exclude citation_dwelled from those views to avoid confusing/empty details.
+        const displayEvents = events.filter(e => e.event_type !== 'citation_dwelled');
         const totalSearches = events.filter(e =>
           e.event_type === 'ai_overview_shown' || e.event_type === 'search_without_ai_overview'
         ).length;
@@ -403,10 +407,57 @@ export const useDashboardData = () => {
           ? (timeToClicks.reduce((a, b) => a + b) / timeToClicks.length / 1000).toFixed(1)
           : 0;
 
+        // Dwell time analysis (tab focus time on citation destinations)
+        const dwellTimeMs = dwellEvents
+          .map(e => e.dwell_time_ms)
+          .filter(v => typeof v === 'number' && !Number.isNaN(v));
+        const avgDwellTimeSec = dwellTimeMs.length > 0
+          ? (dwellTimeMs.reduce((a, b) => a + b) / dwellTimeMs.length / 1000).toFixed(1)
+          : 0;
+
+        // Aggregate dwell times by query and domain/url so the UI can show per-search per-site dwell
+        const dwellMap = {}; // key: `${query}||${domain}||${url}` => {count, totalMs, lastTs}
+        dwellEvents.forEach(d => {
+          const q = d.query || d.session_id || 'unknown_query';
+          const domain = d.citation_domain || (d.citation_url ? new URL(d.citation_url).hostname : 'unknown');
+          const url = d.citation_url || 'unknown_url';
+          const key = `${q}||${domain}||${url}`;
+          const ms = Number(d.dwell_time_ms) || 0;
+          const ts = d.timestamp || d.dwell_end_timestamp || new Date().toISOString();
+          if (!dwellMap[key]) dwellMap[key] = { query: q, domain, url, count: 0, totalMs: 0, lastTs: ts };
+          dwellMap[key].count += 1;
+          dwellMap[key].totalMs += ms;
+          if (new Date(ts) > new Date(dwellMap[key].lastTs)) dwellMap[key].lastTs = ts;
+        });
+
+        // Build a structure: dwellByQuery: { [query]: { domain: { url: {count, avgSec, lastTs}}}}
+        const dwellByQuery = {};
+        Object.values(dwellMap).forEach(item => {
+          const avgSec = item.count > 0 ? (item.totalMs / item.count / 1000) : 0;
+          if (!dwellByQuery[item.query]) dwellByQuery[item.query] = {};
+          if (!dwellByQuery[item.query][item.domain]) dwellByQuery[item.query][item.domain] = [];
+          dwellByQuery[item.query][item.domain].push({ url: item.url, count: item.count, avgDwellSec: Number(avgSec.toFixed(1)), lastTs: item.lastTs });
+        });
+
+        // Also attach dwell summary to domain objects for quick rendering
+        const domainsWithDwell = domains.map(d => {
+          const domainDwell = [];
+          // gather all queries that have this domain
+          Object.keys(dwellByQuery).forEach(q => {
+            const domainGroup = dwellByQuery[q][d.domain];
+            if (domainGroup && domainGroup.length) {
+              domainGroup.forEach(entry => {
+                domainDwell.push({ query: q, url: entry.url, count: entry.count, avgDwellSec: entry.avgDwellSec, lastTs: entry.lastTs });
+              });
+            }
+          });
+          return { ...d, dwell: domainDwell };
+        });
+
         // 🆕 Group events by user (only for admin)
         const eventsByUser = {};
         if (role === 'admin') {
-          events.forEach(e => {
+          displayEvents.forEach(e => {
             const userId = e.userId || 'unknown';
             if (!eventsByUser[userId]) {
               eventsByUser[userId] = [];
@@ -424,7 +475,7 @@ export const useDashboardData = () => {
 
         // 🆕 Group events by topic
         const eventsByTopic = {};
-        events.forEach(e => {
+        displayEvents.forEach(e => {
           const topic = e.query_topic || 'general';
           if (!eventsByTopic[topic]) {
             eventsByTopic[topic] = [];
@@ -439,20 +490,23 @@ export const useDashboardData = () => {
           );
         });
 
-        setStats({
+  setStats({
           totalSearches,
           aiOverviewRate: totalSearches > 0
             ? ((aiOverviewEvents.length / totalSearches) * 100).toFixed(1)
             : 0,
           totalCitations: aiOverviewEvents.reduce((sum, e) => sum + (e.citation_count || 0), 0),
           citationsClicked: clickEvents.length,
-          domains,
+          totalDwellEvents: dwellEvents.length,
+          avgDwellTimeSec,
+          domains: domainsWithDwell,
+          dwellByQuery,
           queryCategories: categoryMap,
           queryTopics: topicMap,
           dailyStats,
           avgTimeToClick,
           totalEvents: events.length,
-          recentEvents: events.slice(-50).reverse(), // Show more recent events
+          recentEvents: displayEvents.slice(-50).reverse(), // Show more recent events (excluding dwell)
           eventsByUser: role === 'admin' ? eventsByUser : {}, // Only for admin
           eventsByTopic,
           languageComparisonRows,
