@@ -153,3 +153,245 @@ Valid categories: technology, business, politics, entertainment, sports, health,
     response.status(500).json({ error: 'Internal server error.' });
   }
 });
+
+const normalizeUrl = (url) => {
+  if (typeof url !== 'string') return '';
+  return url.trim();
+};
+
+const parseGeminiJson = (rawText) => {
+  if (!rawText || typeof rawText !== 'string') return null;
+
+  const trimmed = rawText.trim();
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidateText = fencedMatch ? fencedMatch[1] : trimmed;
+
+  try {
+    return JSON.parse(candidateText);
+  } catch (error) {
+    const arrayMatch = candidateText.match(/\[[\s\S]*\]/);
+    if (!arrayMatch) return null;
+
+    try {
+      return JSON.parse(arrayMatch[0]);
+    } catch (parseError) {
+      return null;
+    }
+  }
+};
+
+exports.classifyOutletUrls = functions.https.onRequest(async (request, response) => {
+  response.set('Access-Control-Allow-Origin', '*');
+  response.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (request.method === 'OPTIONS') {
+    response.status(204).send('');
+    return;
+  }
+
+  if (request.method !== 'POST') {
+    response.status(405).json({ error: 'Method not allowed. Use POST.' });
+    return;
+  }
+
+  try {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      response.status(401).json({ error: 'Unauthorized. Missing Firebase Auth token.' });
+      return;
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+      response.status(401).json({ error: 'Invalid Firebase Auth token.' });
+      return;
+    }
+
+    const { language, items } = request.body || {};
+    if (!['en', 'in'].includes(language)) {
+      response.status(400).json({ error: 'Invalid language. Expected "en" or "in".' });
+      return;
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      response.status(400).json({ error: 'Missing or invalid items array.' });
+      return;
+    }
+
+    const normalizedItems = items
+      .map((item) => ({
+        userId: item?.userId,
+        docId: item?.docId,
+        urls: Array.isArray(item?.urls)
+          ? Array.from(new Set(item.urls.map(normalizeUrl).filter((url) => url.length > 0)))
+          : []
+      }))
+      .filter((item) => item.userId && item.docId);
+
+    if (normalizedItems.length === 0) {
+      response.status(400).json({ error: 'No valid items were provided.' });
+      return;
+    }
+
+    const requesterUid = decodedToken.uid;
+    const targetUserIds = Array.from(new Set(normalizedItems.map((item) => item.userId)));
+    const includesOtherUsers = targetUserIds.some((userId) => userId !== requesterUid);
+
+    if (includesOtherUsers) {
+      const requesterDoc = await admin.firestore().doc(`users/${requesterUid}`).get();
+      const requesterRole = requesterDoc.exists ? requesterDoc.data()?.role : 'user';
+      if (requesterRole !== 'admin') {
+        response.status(403).json({ error: 'Forbidden. Only admins can classify rows for other users.' });
+        return;
+      }
+    }
+
+    const uniqueUrls = Array.from(
+      new Set(normalizedItems.flatMap((item) => item.urls))
+    ).slice(0, 80);
+
+    if (uniqueUrls.length === 0) {
+      response.status(200).json({
+        success: true,
+        processedUrls: 0,
+        updatedDocuments: 0,
+        counts: { regional: 0, international: 0, unknown: 0 }
+      });
+      return;
+    }
+
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      response.status(500).json({
+        error: 'GOOGLE_API_KEY is not configured in the Functions environment.'
+      });
+      return;
+    }
+
+    const geminiPrompt = [
+      'Classify each news outlet URL as regional or international news outlet.',
+      'Use only these labels: regional, international, unknown.',
+      'Return strict JSON array with objects in this exact shape:',
+      '[{"url":"<url>","classification":"regional|international|unknown"}]',
+      'Do not include markdown fences or extra text.',
+      '',
+      ...uniqueUrls.map((url, index) => `${index + 1}. ${url}`)
+    ].join('\n');
+
+    const geminiResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: geminiPrompt
+                }
+              ]
+            }
+          ]
+        })
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini classifyOutletUrls error:', geminiResponse.status, errorText);
+      response.status(500).json({ error: 'Gemini request failed.' });
+      return;
+    }
+
+    const geminiData = await geminiResponse.json();
+    const responseText = geminiData?.candidates?.[0]?.content?.parts
+      ?.map((part) => part?.text || '')
+      .join('\n')
+      .trim();
+
+    const parsedResult = parseGeminiJson(responseText);
+    const validLabels = new Set(['regional', 'international', 'unknown']);
+    const classificationsByUrl = {};
+
+    if (Array.isArray(parsedResult)) {
+      parsedResult.forEach((entry) => {
+        const url = normalizeUrl(entry?.url);
+        const classification = typeof entry?.classification === 'string'
+          ? entry.classification.trim().toLowerCase()
+          : 'unknown';
+        if (!url) return;
+        classificationsByUrl[url.toLowerCase()] = validLabels.has(classification)
+          ? classification
+          : 'unknown';
+      });
+    }
+
+    uniqueUrls.forEach((url) => {
+      const key = url.toLowerCase();
+      if (!classificationsByUrl[key]) {
+        classificationsByUrl[key] = 'unknown';
+      }
+    });
+
+    let updatedDocuments = 0;
+    const writeOperations = normalizedItems.map(async (item) => {
+      const docRef = admin.firestore().doc(`users/${item.userId}/${language}/${item.docId}`);
+      const docSnap = await docRef.get();
+      const existingMap = docSnap.exists
+        ? (docSnap.data()?.outlet_classifications || docSnap.data()?.url_classifications || {})
+        : {};
+
+      const rowMap = item.urls.reduce((acc, url) => {
+        acc[url] = classificationsByUrl[url.toLowerCase()] || 'unknown';
+        return acc;
+      }, {});
+
+      const mergedMap = {
+        ...existingMap,
+        ...rowMap
+      };
+
+      await docRef.set({
+        outlet_classifications: mergedMap,
+        outlet_classifications_updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        outlet_classifications_model: 'gemini-flash-latest'
+      }, { merge: true });
+
+      updatedDocuments += 1;
+    });
+
+    await Promise.all(writeOperations);
+
+    const counts = {
+      regional: 0,
+      international: 0,
+      unknown: 0
+    };
+
+    Object.values(classificationsByUrl).forEach((label) => {
+      if (counts[label] === undefined) {
+        counts.unknown += 1;
+      } else {
+        counts[label] += 1;
+      }
+    });
+
+    response.status(200).json({
+      success: true,
+      processedUrls: uniqueUrls.length,
+      updatedDocuments,
+      counts
+    });
+  } catch (error) {
+    console.error('Error in classifyOutletUrls:', error);
+    response.status(500).json({ error: 'Internal server error.' });
+  }
+});
