@@ -9,8 +9,9 @@ import {
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { db, auth } from '../firebaseConfig';
+import { db } from '../firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
+import CollapsibleJourneyTree from './CollapsibleJourneyTree';
 
 export const Dashboard = () => {
   const { stats, loading, error, userRole } = useDashboardData();
@@ -21,14 +22,6 @@ export const Dashboard = () => {
   const [timelineView, setTimelineView] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [deletingEventId, setDeletingEventId] = useState(null);
-  const [expandedLanguageRows, setExpandedLanguageRows] = useState({});
-
-  const toggleLanguageRow = (key) => {
-    setExpandedLanguageRows((prev) => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
   const [dwellMinSec, setDwellMinSec] = useState(0);
   const [dwellSort, setDwellSort] = useState('avgDesc');
   const [dwellSearch, setDwellSearch] = useState('');
@@ -142,7 +135,7 @@ export const Dashboard = () => {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex gap-8 items-center">
           <div className="flex gap-4 flex-1">
-            {['overview', 'domains', 'topics', 'language', 'timeline'].map(tab => (
+            {['overview', 'domains', 'topics', 'timeline', 'journeys'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -152,7 +145,7 @@ export const Dashboard = () => {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {tab === 'language' ? 'Language Comparison' : tab}
+                {tab}
               </button>
             ))}
           </div>
@@ -252,7 +245,7 @@ export const Dashboard = () => {
           <div className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🔗 Top Cited Domains</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Link: Top Cited Domains</h3>
                 {stats?.domains && stats.domains.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={stats.domains}>
@@ -437,7 +430,7 @@ export const Dashboard = () => {
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🔍 Query Category Analysis</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Search: Query Category Analysis</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {stats?.queryCategories && Object.entries(stats.queryCategories).map(([category, data], idx) => (
                   <div key={idx} className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
@@ -446,190 +439,6 @@ export const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* LANGUAGE TAB */}
-        {activeTab === 'language' && (
-          <div className="space-y-8 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">Compared Queries</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  {stats?.totalComparedQueries || 0}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">EN Total Citations</p>
-                <p className="text-3xl font-bold text-blue-700 mt-2">
-                  {stats?.totalEnCitations || 0}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">IN Total Citations</p>
-                <p className="text-3xl font-bold text-emerald-700 mt-2">
-                  {stats?.totalInCitations || 0}
-                </p>
-              </div>
-            </div>
-
-            {/* Outlet Type Comparison Chart */}
-            {(stats?.enOutletCounts || stats?.inOutletCounts) && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Local vs Global Outlets by Language</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={[
-                      {
-                        language: 'English',
-                        Local: stats.enOutletCounts?.local || 0,
-                        Global: stats.enOutletCounts?.global || 0
-                      },
-                      {
-                        language: 'Indonesian',
-                        Local: stats.inOutletCounts?.local || 0,
-                        Global: stats.inOutletCounts?.global || 0
-                      }
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="language" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Local" fill="#f59e0b" />
-                    <Bar dataKey="Global" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 EN and IN Queries (Expandable Citations)</h3>
-
-              {stats?.languageQueryPairs && stats.languageQueryPairs.length > 0 ? (
-                <table className="w-full text-sm min-w-[900px]">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">English Query</th>
-                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">Indonesian Query</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.languageQueryPairs.map((pair, idx) => (
-                      <tr key={`pair-${idx}`} className="border-b align-top">
-                        <td className="p-3">
-                          {pair.en ? (
-                            <div>
-                              <button
-                                onClick={() => toggleLanguageRow(`en-${idx}`)}
-                                className="w-full text-left p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="font-medium text-gray-900 break-words">{pair.en.query}</p>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-200 text-blue-900">
-                                      {pair.en.citationCount} citations
-                                    </span>
-                                    <span className="text-blue-700 font-bold">
-                                      {expandedLanguageRows[`en-${idx}`] ? '−' : '+'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </button>
-
-                              {expandedLanguageRows[`en-${idx}`] && (
-                                <div className="mt-2 p-3 rounded-lg border border-blue-100 bg-white">
-                                  <p className="text-xs font-semibold text-blue-700 mb-2">Citations</p>
-                                  {pair.en.citations.length > 0 ? (
-                                    <ul className="space-y-2">
-                                      {pair.en.citations.map((citation, citationIdx) => (
-                                        <li key={`en-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
-                                          {citation.url ? (
-                                            <a
-                                              href={citation.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-blue-700 hover:underline"
-                                            >
-                                              {citation.label}
-                                            </a>
-                                          ) : (
-                                            <span>{citation.label}</span>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">No citation list available</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic p-3">No English query</p>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          {pair.in ? (
-                            <div>
-                              <button
-                                onClick={() => toggleLanguageRow(`in-${idx}`)}
-                                className="w-full text-left p-3 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="font-medium text-gray-900 break-words">{pair.in.query}</p>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-900">
-                                      {pair.in.citationCount} citations
-                                    </span>
-                                    <span className="text-emerald-700 font-bold">
-                                      {expandedLanguageRows[`in-${idx}`] ? '−' : '+'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </button>
-
-                              {expandedLanguageRows[`in-${idx}`] && (
-                                <div className="mt-2 p-3 rounded-lg border border-emerald-100 bg-white">
-                                  <p className="text-xs font-semibold text-emerald-700 mb-2">Citations</p>
-                                  {pair.in.citations.length > 0 ? (
-                                    <ul className="space-y-2">
-                                      {pair.in.citations.map((citation, citationIdx) => (
-                                        <li key={`in-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
-                                          {citation.url ? (
-                                            <a
-                                              href={citation.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-emerald-700 hover:underline"
-                                            >
-                                              {citation.label}
-                                            </a>
-                                          ) : (
-                                            <span>{citation.label}</span>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">No citation list available</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic p-3">No Indonesian query</p>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No EN/IN citation data available</p>
-              )}
             </div>
           </div>
         )}
@@ -680,7 +489,7 @@ export const Dashboard = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  ⏱️ Dwell by Query
+                  Time: Dwell by Query
                 </button>
               </div>
             </div>
@@ -712,8 +521,8 @@ export const Dashboard = () => {
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <p className="font-semibold text-gray-900">
                                 {event.event_type === 'ai_overview_shown' ? '🤖 AI Overview' :
-                                 event.event_type === 'citation_clicked' ? '🖱️ Citation Clicked' :
-                                 '🔍 Search (No Overview)'}
+                                 event.event_type === 'citation_clicked' ? 'Click Citation Clicked' :
+                                 'Search: Search (No Overview)'}
                               </p>
                               {event.query_topic && (
                                 <span 
@@ -781,7 +590,7 @@ export const Dashboard = () => {
                           <p className="text-xs text-blue-600 mt-2">💡 Click to view full details →</p>
                         )}
                         {event.event_type === 'citation_clicked' && (
-                          <p className="text-xs text-green-600 mt-2">🔗 Click to visit this citation URL →</p>
+                          <p className="text-xs text-green-600 mt-2">Link: Click to visit this citation URL →</p>
                         )}
                       </div>
                     ))
@@ -929,8 +738,8 @@ export const Dashboard = () => {
                                       </span>
                                       <p className="font-semibold text-gray-900">
                                         {event.event_type === 'ai_overview_shown' ? '🤖 AI Overview' :
-                                         event.event_type === 'citation_clicked' ? '🖱️ Citation Click' :
-                                         '🔍 Search'}
+                                         event.event_type === 'citation_clicked' ? 'Click Citation Click' :
+                                         'Search: Search'}
                                       </p>
                                       {event.query_topic && (
                                         <span 
@@ -954,7 +763,7 @@ export const Dashboard = () => {
                                     )}
                                     {event.event_type === 'citation_clicked' && event.citation_domain && (
                                       <p className="text-xs text-green-600 mt-2">
-                                        🔗 Clicked: <span className="font-semibold">{event.citation_domain}</span> • Click to visit
+                                        Link: Clicked: <span className="font-semibold">{event.citation_domain}</span> • Click to visit
                                       </p>
                                     )}
                                   </div>
@@ -971,7 +780,7 @@ export const Dashboard = () => {
                                   <p className="text-xs text-blue-600 mt-3">💡 Click to view full AI Overview details</p>
                                 )}
                                 {event.event_type === 'citation_clicked' && (
-                                  <p className="text-xs text-green-600 mt-3">🔗 Click to visit this citation URL</p>
+                                  <p className="text-xs text-green-600 mt-3">Link: Click to visit this citation URL</p>
                                 )}
                               </div>
                             ))}
@@ -1047,7 +856,7 @@ export const Dashboard = () => {
                                 <div className="flex items-center gap-2">
                                   <p className="font-medium text-gray-900">
                                     {event.event_type === 'ai_overview_shown' ? '🤖' :
-                                     event.event_type === 'citation_clicked' ? '🖱️' : '🔍'}{' '}
+                                     event.event_type === 'citation_clicked' ? 'Click' : 'Search:'}{' '}
                                     "{event.query}"
                                   </p>
                                   {event.event_type === 'citation_clicked' && (
@@ -1061,7 +870,7 @@ export const Dashboard = () => {
                                 )}
                                 {event.event_type === 'citation_clicked' && event.citation_domain && (
                                   <p className="text-xs text-green-600 mt-1">
-                                    🔗 <span className="font-semibold">{event.citation_domain}</span> • Click to visit
+                                    Link: <span className="font-semibold">{event.citation_domain}</span> • Click to visit
                                   </p>
                                 )}
                                 {event.event_type === 'ai_overview_shown' && (
@@ -1095,7 +904,7 @@ export const Dashboard = () => {
             {/* BY DWELL VIEW */}
             {timelineView === 'byDwell' && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">⏱️ Dwell Time by Query</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Time: Dwell Time by Query</h3>
 
                 <div className="flex items-center gap-4 mb-4 flex-wrap">
                   <div className="flex items-center gap-2">
@@ -1226,6 +1035,209 @@ export const Dashboard = () => {
           </div>
         )}
 
+        {/* JOURNEYS TAB */}
+        {activeTab === 'journeys' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatCard
+                icon={Search}
+                title="Total Journeys"
+                value={stats?.totalJourneys || 0}
+                subtitle="Navigation paths tracked"
+                color="blue"
+              />
+              <StatCard
+                icon={Link}
+                title="Avg Journey Depth"
+                value={stats?.avgJourneyDepth || 0}
+                subtitle="Average navigation levels"
+                color="purple"
+              />
+              <StatCard
+                icon={MousePointerClick}
+                title="Avg Pages per Journey"
+                value={stats?.avgJourneyPages || 0}
+                subtitle="Pages visited per journey"
+                color="green"
+              />
+            </div>
+
+            {/* JOURNEY ANALYTICS CHARTS */}
+            {stats?.journeys && stats.journeys.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Journey Depth Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Journey Depth Distribution</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const depthCounts = {};
+                      stats.journeys.forEach(j => {
+                        const depth = j.summary?.max_depth || 0;
+                        depthCounts[depth] = (depthCounts[depth] || 0) + 1;
+                      });
+                      return Object.entries(depthCounts)
+                        .map(([depth, count]) => ({ depth: `${depth} level${depth > 1 ? 's' : ''}`, count }))
+                        .sort((a, b) => parseInt(a.depth) - parseInt(b.depth));
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="depth" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Shows how many navigation levels users explored in their journeys
+                  </p>
+                </div>
+
+                {/* Top Citation Domains by Exploration */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Link: Top Citation Domains</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const domainCounts = {};
+                      stats.journeys.forEach(j => {
+                        const domain = j.root_citation?.domain || 'unknown';
+                        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+                      });
+                      return Object.entries(domainCounts)
+                        .map(([domain, count]) => ({ domain, count }))
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 8);
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="domain" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Which citation domains lead to the most user exploration
+                  </p>
+                </div>
+
+                {/* Journey Duration Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Time: Journey Duration</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const buckets = {
+                        '0-30s': 0,
+                        '30s-1m': 0,
+                        '1-2m': 0,
+                        '2-5m': 0,
+                        '5m+': 0
+                      };
+                      stats.journeys.forEach(j => {
+                        const seconds = (j.summary?.total_journey_time_ms || 0) / 1000;
+                        if (seconds < 30) buckets['0-30s']++;
+                        else if (seconds < 60) buckets['30s-1m']++;
+                        else if (seconds < 120) buckets['1-2m']++;
+                        else if (seconds < 300) buckets['2-5m']++;
+                        else buckets['5m+']++;
+                      });
+                      return Object.entries(buckets).map(([range, count]) => ({ range, count }));
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="range" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#f59e0b" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    How long users spend on their navigation journeys
+                  </p>
+                </div>
+
+                {/* Pages per Journey Distribution */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📄 Pages per Journey</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={(() => {
+                      const pageCounts = {};
+                      stats.journeys.forEach(j => {
+                        const pages = j.summary?.total_pages_visited || 0;
+                        const bucket = pages > 5 ? '6+' : `${pages}`;
+                        pageCounts[bucket] = (pageCounts[bucket] || 0) + 1;
+                      });
+                      return Object.entries(pageCounts)
+                        .map(([pages, count]) => ({ pages: `${pages} page${pages !== '1' ? 's' : ''}`, count }))
+                        .sort((a, b) => {
+                          const aNum = a.pages === '6+ pages' ? 6 : parseInt(a.pages);
+                          const bNum = b.pages === '6+ pages' ? 6 : parseInt(b.pages);
+                          return aNum - bNum;
+                        });
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="pages" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#8b5cf6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-gray-500 mt-3">
+                    Distribution of how many pages users visit per journey
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <h2 className="text-2xl font-bold text-gray-900">Journey: User Journeys</h2>
+
+            {stats?.journeys && stats.journeys.length > 0 ? (
+              <div className="space-y-6">
+                {stats.journeys.slice(0, 10).map((journey, idx) => (
+                  <div key={idx} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Journey #{stats.journeys.length - idx}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Query: <span className="font-medium">"{journey.query}"</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Started: {new Date(journey.started_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-semibold">
+                          {journey.end_reason || 'completed'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Journey Tree */}
+                    <CollapsibleJourneyTree journeyData={journey} />
+                  </div>
+                ))}
+
+                {stats.journeys.length > 10 && (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500">
+                      Showing 10 most recent journeys out of {stats.journeys.length} total
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-6xl mb-4">Journey:</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Journey Data Yet</h3>
+                <p className="text-gray-600">
+                  Journeys will appear here when users click citations and navigate through multiple pages.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Try clicking a citation from AI Overview and browsing through the site!
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-600 text-sm">
           <p>AI Overview Tracker • Research Analytics Platform</p>
           <p className="mt-2">Data last synced: {new Date().toLocaleString()}</p>
@@ -1253,7 +1265,7 @@ export const Dashboard = () => {
 
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                🔗 All Citation URLs ({selectedDomain.urls?.length || 0})
+                Link: All Citation URLs ({selectedDomain.urls?.length || 0})
               </h3>
               <div className="space-y-2">
                 {selectedDomain.urls && selectedDomain.urls.map((url, idx) => (
@@ -1339,7 +1351,7 @@ export const Dashboard = () => {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {source.clicked && (
-                          <span className="text-green-600 text-sm font-semibold whitespace-nowrap">✅ Clicked</span>
+                          <span className="text-green-600 text-sm font-semibold whitespace-nowrap">Clicked Clicked</span>
                         )}
                         <a 
                           href={source.url} 
