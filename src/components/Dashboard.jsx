@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { db } from '../firebaseConfig';
+import { db, auth } from '../firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
 import CollapsibleJourneyTree from './CollapsibleJourneyTree';
 
@@ -27,6 +27,14 @@ export const Dashboard = () => {
   const [dwellSearch, setDwellSearch] = useState('');
   const [dwellPage, setDwellPage] = useState(1);
   const [dwellPageSize] = useState(10);
+  const [expandedLanguageRows, setExpandedLanguageRows] = useState({});
+
+  const toggleLanguageRow = (key) => {
+    setExpandedLanguageRows((prev) => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const handleDeleteEvent = async (event, e) => {
     e.stopPropagation(); // Prevent event card click
@@ -135,7 +143,7 @@ export const Dashboard = () => {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex gap-8 items-center">
           <div className="flex gap-4 flex-1">
-            {['overview', 'domains', 'topics', 'timeline', 'journeys'].map(tab => (
+            {['overview', 'domains', 'topics', 'language', 'timeline', 'journeys'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -145,7 +153,7 @@ export const Dashboard = () => {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {tab}
+                {tab === 'language' ? 'Language Comparison' : tab}
               </button>
             ))}
           </div>
@@ -439,6 +447,190 @@ export const Dashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* LANGUAGE TAB */}
+        {activeTab === 'language' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <p className="text-sm text-gray-600">Compared Queries</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {stats?.totalComparedQueries || 0}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <p className="text-sm text-gray-600">EN Total Citations</p>
+                <p className="text-3xl font-bold text-blue-700 mt-2">
+                  {stats?.totalEnCitations || 0}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <p className="text-sm text-gray-600">IN Total Citations</p>
+                <p className="text-3xl font-bold text-emerald-700 mt-2">
+                  {stats?.totalInCitations || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Outlet Type Comparison Chart */}
+            {(stats?.enOutletCounts || stats?.inOutletCounts) && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Local vs Global Outlets by Language</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={[
+                      {
+                        language: 'English',
+                        Local: stats.enOutletCounts?.local || 0,
+                        Global: stats.enOutletCounts?.global || 0
+                      },
+                      {
+                        language: 'Indonesian',
+                        Local: stats.inOutletCounts?.local || 0,
+                        Global: stats.inOutletCounts?.global || 0
+                      }
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="language" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Local" fill="#f59e0b" />
+                    <Bar dataKey="Global" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 EN and IN Queries (Expandable Citations)</h3>
+
+              {stats?.languageQueryPairs && stats.languageQueryPairs.length > 0 ? (
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">English Query</th>
+                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">Indonesian Query</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.languageQueryPairs.map((pair, idx) => (
+                      <tr key={`pair-${idx}`} className="border-b align-top">
+                        <td className="p-3">
+                          {pair.en ? (
+                            <div>
+                              <button
+                                onClick={() => toggleLanguageRow(`en-${idx}`)}
+                                className="w-full text-left p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-medium text-gray-900 break-words">{pair.en.query}</p>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-200 text-blue-900">
+                                      {pair.en.citationCount} citations
+                                    </span>
+                                    <span className="text-blue-700 font-bold">
+                                      {expandedLanguageRows[`en-${idx}`] ? '−' : '+'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+
+                              {expandedLanguageRows[`en-${idx}`] && (
+                                <div className="mt-2 p-3 rounded-lg border border-blue-100 bg-white">
+                                  <p className="text-xs font-semibold text-blue-700 mb-2">Citations</p>
+                                  {pair.en.citations.length > 0 ? (
+                                    <ul className="space-y-2">
+                                      {pair.en.citations.map((citation, citationIdx) => (
+                                        <li key={`en-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
+                                          {citation.url ? (
+                                            <a
+                                              href={citation.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-blue-700 hover:underline"
+                                            >
+                                              {citation.label}
+                                            </a>
+                                          ) : (
+                                            <span>{citation.label}</span>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">No citation list available</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic p-3">No English query</p>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {pair.in ? (
+                            <div>
+                              <button
+                                onClick={() => toggleLanguageRow(`in-${idx}`)}
+                                className="w-full text-left p-3 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-medium text-gray-900 break-words">{pair.in.query}</p>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-900">
+                                      {pair.in.citationCount} citations
+                                    </span>
+                                    <span className="text-emerald-700 font-bold">
+                                      {expandedLanguageRows[`in-${idx}`] ? '−' : '+'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+
+                              {expandedLanguageRows[`in-${idx}`] && (
+                                <div className="mt-2 p-3 rounded-lg border border-emerald-100 bg-white">
+                                  <p className="text-xs font-semibold text-emerald-700 mb-2">Citations</p>
+                                  {pair.in.citations.length > 0 ? (
+                                    <ul className="space-y-2">
+                                      {pair.in.citations.map((citation, citationIdx) => (
+                                        <li key={`in-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
+                                          {citation.url ? (
+                                            <a
+                                              href={citation.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-emerald-700 hover:underline"
+                                            >
+                                              {citation.label}
+                                            </a>
+                                          ) : (
+                                            <span>{citation.label}</span>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">No citation list available</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic p-3">No Indonesian query</p>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No EN/IN citation data available</p>
+              )}
             </div>
           </div>
         )}
