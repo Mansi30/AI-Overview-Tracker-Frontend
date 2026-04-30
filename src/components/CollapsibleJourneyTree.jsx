@@ -49,7 +49,7 @@ const TreeNode = ({ node, level = 0 }) => {
 
         {/* Icon */}
         {level === 0 ? (
-          <span className="text-xl">📄</span>
+          <span className="text-xl font-bold text-blue-600">●</span>
         ) : (
           <span className="text-lg">↳</span>
         )}
