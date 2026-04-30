@@ -5,7 +5,11 @@ A React dashboard for visualising Google Search AI Overview tracking data. Conne
 ## What it does
 
 - Displays per-query AI Overview appearance stats (rate, dwell time, domain breakdown)
-- Language comparison across tracked queries
+- Language comparison across tracked queries: compares how AI Overviews differ between English and Indonesian versions of the same search queries
+  - Side-by-side table pairing EN and IN queries, sorted by total citation count
+  - Outlet type bar chart showing how many citations come from local vs global sources per language
+  - Expandable rows revealing the full citation list for each query, with clickable source links
+  - Data is read from separate Firestore subcollections (`/users/{userId}/en` and `/users/{userId}/in`), written by the query runner extension
 - Journey tree showing navigation paths triggered by AI Overviews
 - Admin view: browse and delete events across all users
 - User view: scoped to the logged-in account's data
