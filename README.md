@@ -1,72 +1,103 @@
-# AI-Overview-Tracker-Frontend
+# AI Overview Tracker — Frontend
 
-## Getting Started with Create React App
+A React dashboard for visualising Google Search AI Overview tracking data. Connects to Firebase (Firestore + Auth) where a companion query runner extension deposits events.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## What it does
 
-## Available Scripts
+- Displays per-query AI Overview appearance stats (rate, dwell time, domain breakdown)
+- Language comparison across tracked queries
+- Journey tree showing navigation paths triggered by AI Overviews
+- Admin view: browse and delete events across all users
+- User view: scoped to the logged-in account's data
 
-In the project directory, you can run:
+## Prerequisites
 
-### `npm start`
+- Node.js 18+
+- A Firebase project with **Firestore** and **Email/Password Authentication** enabled
+- The companion [ai-overview-query-runner](../ai-overview-query-runner) extension writing data into Firestore
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Setup
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 1. Clone and install
 
-### `npm test`
+```bash
+git clone <repo-url>
+cd AI-Overview-Tracker-frontend
+npm install
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 2. Configure environment variables
 
-### `npm run build`
+Copy the example file and fill in your Firebase project credentials:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+cp .env.example .env
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Then edit `.env`:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```env
+REACT_APP_FIREBASE_API_KEY=...
+REACT_APP_FIREBASE_AUTH_DOMAIN=...
+REACT_APP_FIREBASE_PROJECT_ID=...
+REACT_APP_FIREBASE_STORAGE_BUCKET=...
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=...
+REACT_APP_FIREBASE_APP_ID=...
+```
 
-### `npm run eject`
+Find these values in the Firebase console under **Project settings → Your apps → SDK setup and configuration**.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 3. Start the dev server
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+npm start
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Opens at [http://localhost:3000](http://localhost:3000). Log in with a Firebase Auth account.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Scripts
 
-## Learn More
+| Command | Description |
+|---|---|
+| `npm start` | Run dev server with hot reload |
+| `npm run build` | Production build to `build/` |
+| `npm test` | Run tests in watch mode |
+| `npm run deploy` | Build and deploy to Firebase Hosting |
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Deployment
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The app deploys to Firebase Hosting. Make sure the Firebase CLI is installed and you're logged in:
 
-### Code Splitting
+```bash
+npm install -g firebase-tools
+firebase login
+npm run deploy
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+This runs `npm run build` then `firebase deploy --only hosting`.
 
-### Analyzing the Bundle Size
+## Project structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```
+src/
+  components/
+    Dashboard.jsx              # Main dashboard with all tabs and charts
+    DashboardHeader.jsx        # Top nav bar with user/refresh controls
+    LoginPage.jsx              # Firebase Auth login form
+    StatCard.jsx               # Reusable metric card
+    CollapsibleJourneyTree.jsx # Expandable journey path visualisation
+  hooks/
+    useAuth.js                 # Firebase Auth state listener
+    useDashboardData.js        # Firestore data fetching and aggregation
+  context/
+    AuthContext.js             # Auth context provider
+  firebaseConfig.js            # Firebase initialisation (reads from .env)
+functions/
+  index.js                     # Firebase Cloud Functions (if used)
+```
 
-### Making a Progressive Web App
+## Firestore data structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The app reads from a `users/{userId}/events/{eventId}` collection path. Each event document is written by the query runner extension and contains fields like `event_type`, `query`, `timestamp`, `ai_overview_present`, and related metadata.
 
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Admin users (identified by role in Firestore) can read events across all user documents.
