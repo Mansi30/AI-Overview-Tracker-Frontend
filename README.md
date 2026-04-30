@@ -14,7 +14,6 @@ A React dashboard for visualising Google Search AI Overview tracking data. Conne
 
 - Node.js 18+
 - A Firebase project with **Firestore** and **Email/Password Authentication** enabled
-- The companion [ai-overview-query-runner](../ai-overview-query-runner) extension writing data into Firestore
 
 ## Setup
 
@@ -45,7 +44,8 @@ REACT_APP_FIREBASE_MESSAGING_SENDER_ID=...
 REACT_APP_FIREBASE_APP_ID=...
 ```
 
-Find these values in the Firebase console under **Project settings → Your apps → SDK setup and configuration**.
+- Find these values in the Firebase console under **Project settings → Your apps → SDK setup and configuration** (See [here](https://console.firebase.google.com/project/uma-prodev/settings/general/web:OTcwNGYzN2MtNDkwZi00MDY1LTg0MTItNWIyMTQ3MjhkNDRi?fb_gclid=CjwKCAjwhqfPBhBWEiwAZo196uh7H71cLhsN-VKLk6YEWX955jOsyLa2fXzOpYEGPkyimIamSvg9yBoCZkkQAvD_BwE&fb_utm_campaign=Cloud-SS-DR-Firebase-FY26-global-gsem-1713590&fb_utm_content=text-ad&fb_utm_medium=cpc&fb_utm_source=google&fb_utm_term=KW_firebase) for the credentials from the team managed firestore account).
+- If you are having any issues with this, please contact the team.
 
 ### 3. Start the dev server
 
@@ -54,15 +54,6 @@ npm start
 ```
 
 Opens at [http://localhost:3000](http://localhost:3000). Log in with a Firebase Auth account.
-
-## Scripts
-
-| Command | Description |
-|---|---|
-| `npm start` | Run dev server with hot reload |
-| `npm run build` | Production build to `build/` |
-| `npm test` | Run tests in watch mode |
-| `npm run deploy` | Build and deploy to Firebase Hosting |
 
 ## Deployment
 
