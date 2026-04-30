@@ -212,8 +212,8 @@ exports.classifyOutletUrls = functions.https.onRequest(async (request, response)
     }
 
     const { language, items } = request.body || {};
-    if (!['en', 'in'].includes(language)) {
-      response.status(400).json({ error: 'Invalid language. Expected "en" or "in".' });
+    if (!['en', 'id'].includes(language)) {
+      response.status(400).json({ error: 'Invalid language. Expected "en" or "id".' });
       return;
     }
 
