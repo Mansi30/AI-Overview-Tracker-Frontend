@@ -40,6 +40,7 @@ export const useDashboardData = () => {
         let events = [];
         let englishComparisons = [];
         let indonesianComparisons = [];
+        let queryPairs = [];
 
         const normalizeCitationEntry = (source, classificationMap) => {
           if (!source) return null;
@@ -124,12 +125,34 @@ export const useDashboardData = () => {
           }).filter((entry) => entry.query)
         );
 
+        const normalizeQueryKey = (query) => (
+          (query || '').toString().trim().toLowerCase()
+        );
+
+        const normalizeQueryPairs = (snapshot, userIdResolver) => (
+          snapshot.docs.map((snapshotDoc) => {
+            const data = snapshotDoc.data() || {};
+            const userId = userIdResolver(snapshotDoc);
+
+            return {
+              pairId: (data.pairId || data.pair_id || snapshotDoc.id || '').toString(),
+              en: (data.en || '').toString().trim(),
+              id: (data.id || '').toString().trim(),
+              queryFile: data.queryFile || data.query_file || '',
+              updatedAt: data.updatedAt || data.updated_at || null,
+              docId: snapshotDoc.id,
+              userId
+            };
+          }).filter((pair) => pair.en || pair.id)
+        );
+
         if (role === 'admin') {
           // Admin: fetch ALL user docs from events/en/id subcollections.
-          const [eventsSnapshot, englishSnapshot, indonesianSnapshot] = await Promise.all([
+          const [eventsSnapshot, englishSnapshot, indonesianSnapshot, queryPairsSnapshot] = await Promise.all([
             getDocs(collectionGroup(db, 'events')),
             getDocs(collectionGroup(db, 'en')),
-            getDocs(collectionGroup(db, 'id'))
+            getDocs(collectionGroup(db, 'id')),
+            getDocs(collectionGroup(db, 'query_pairs'))
           ]);
 
           events = eventsSnapshot.docs.map((snapshotDoc) => ({
@@ -149,17 +172,24 @@ export const useDashboardData = () => {
             (snapshotDoc) => snapshotDoc.ref.parent.parent?.id || 'unknown',
             'id'
           );
+
+          queryPairs = normalizeQueryPairs(
+            queryPairsSnapshot,
+            (snapshotDoc) => snapshotDoc.ref.parent.parent?.id || 'unknown'
+          );
         } else {
           // Regular user: fetch only docs under users/{uid}/events|en|id
           if (currentUserId) {
             const userEventsCollection = collection(db, 'users', currentUserId, 'events');
             const userEnglishCollection = collection(db, 'users', currentUserId, 'en');
             const userIndonesianCollection = collection(db, 'users', currentUserId, 'id');
+            const userQueryPairsCollection = collection(db, 'users', currentUserId, 'query_pairs');
 
-            const [userEventsSnapshot, userEnglishSnapshot, userIndonesianSnapshot] = await Promise.all([
+            const [userEventsSnapshot, userEnglishSnapshot, userIndonesianSnapshot, userQueryPairsSnapshot] = await Promise.all([
               getDocs(userEventsCollection),
               getDocs(userEnglishCollection),
-              getDocs(userIndonesianCollection)
+              getDocs(userIndonesianCollection),
+              getDocs(userQueryPairsCollection)
             ]);
 
             events = userEventsSnapshot.docs.map((snapshotDoc) => ({
@@ -178,6 +208,11 @@ export const useDashboardData = () => {
               userIndonesianSnapshot,
               () => currentUserId,
               'id'
+            );
+
+            queryPairs = normalizeQueryPairs(
+              userQueryPairsSnapshot,
+              () => currentUserId
             );
           }
         }
@@ -213,51 +248,47 @@ export const useDashboardData = () => {
           }))
           .sort((a, b) => b.totalCitations - a.totalCitations);
 
-        const totalEnCitations = languageComparisonRows.reduce(
-          (sum, row) => sum + row.enCitations,
-          0
-        );
-
-        const totalIdCitations = languageComparisonRows.reduce(
-          (sum, row) => sum + row.idCitations,
-          0
-        );
-
         const aggregateLanguageQueries = (records) => {
           const queries = {};
 
           records.forEach((record) => {
-            const key = record.docId;
-            if (!queries[key]) {
-              queries[key] = {
+            const queryKey = normalizeQueryKey(record.query);
+            if (!queryKey) return;
+
+            const scopedKey = `${record.userId || 'unknown'}||${queryKey}`;
+            if (!queries[scopedKey]) {
+              queries[scopedKey] = {
                 query: record.query,
                 citationCount: 0,
                 citations: [],
-                sourceDocs: []
+                sourceDocs: [],
+                userId: record.userId,
+                queryKey
               };
             }
 
-            queries[key].citationCount += record.citation_count;
+            const entry = queries[scopedKey];
+            entry.citationCount += record.citation_count;
 
             const existingCitations = new Set(
-              queries[key].citations.map((citation) => `${citation.label}|${citation.url}`)
+              entry.citations.map((citation) => `${citation.label}|${citation.url}`)
             );
 
             record.citations.forEach((citation) => {
               const citationKey = `${citation.label}|${citation.url}`;
               if (!existingCitations.has(citationKey)) {
                 existingCitations.add(citationKey);
-                queries[key].citations.push(citation);
+                entry.citations.push(citation);
               }
             });
 
             const sourceDocKey = `${record.userId}|${record.docId}`;
-            const existingSourceDoc = queries[key].sourceDocs.find(
+            const existingSourceDoc = entry.sourceDocs.find(
               (sourceDoc) => `${sourceDoc.userId}|${sourceDoc.docId}` === sourceDocKey
             );
 
             if (!existingSourceDoc) {
-              queries[key].sourceDocs.push({
+              entry.sourceDocs.push({
                 userId: record.userId,
                 docId: record.docId,
                 language: record.language,
@@ -281,11 +312,49 @@ export const useDashboardData = () => {
             }
           });
 
-          return Object.values(queries).sort((a, b) => b.citationCount - a.citationCount);
+          return queries;
         };
 
-        const englishQueries = aggregateLanguageQueries(englishComparisons);
-        const indonesianQueries = aggregateLanguageQueries(indonesianComparisons);
+        const englishQueryMap = aggregateLanguageQueries(englishComparisons);
+        const indonesianQueryMap = aggregateLanguageQueries(indonesianComparisons);
+
+        const buildPairKey = (userId, queryText) => {
+          const normalized = normalizeQueryKey(queryText);
+          if (!normalized) return null;
+          return `${userId || 'unknown'}||${normalized}`;
+        };
+
+        const createFallbackQuery = (queryText) => {
+          const trimmed = (queryText || '').toString().trim();
+          if (!trimmed) return null;
+          return {
+            query: trimmed,
+            citationCount: 0,
+            citations: [],
+            sourceDocs: []
+          };
+        };
+
+        const languageQueryPairs = queryPairs.map((pair) => {
+          const enKey = buildPairKey(pair.userId, pair.en);
+          const idKey = buildPairKey(pair.userId, pair.id);
+          const en = enKey ? englishQueryMap[enKey] : null;
+          const id = idKey ? indonesianQueryMap[idKey] : null;
+
+          return {
+            pairId: pair.pairId,
+            en: en || createFallbackQuery(pair.en),
+            id: id || createFallbackQuery(pair.id)
+          };
+        });
+
+        const englishQueries = languageQueryPairs
+          .map((pair) => pair.en)
+          .filter(Boolean);
+
+        const indonesianQueries = languageQueryPairs
+          .map((pair) => pair.id)
+          .filter(Boolean);
 
         // Compute local vs global outlet type counts per language
         const countOutletTypes = (queries) => {
@@ -303,11 +372,16 @@ export const useDashboardData = () => {
 
         const enOutletCounts = countOutletTypes(englishQueries);
         const idOutletCounts = countOutletTypes(indonesianQueries);
-        const maxLanguageRows = Math.max(englishQueries.length, indonesianQueries.length);
-        const languageQueryPairs = Array.from({ length: maxLanguageRows }, (_, index) => ({
-          en: englishQueries[index] || null,
-          id: indonesianQueries[index] || null
-        }));
+
+        const totalEnCitations = englishQueries.reduce(
+          (sum, row) => sum + (row.citationCount || 0),
+          0
+        );
+
+        const totalIdCitations = indonesianQueries.reduce(
+          (sum, row) => sum + (row.citationCount || 0),
+          0
+        );
 
         // Calculate statistics
         const aiOverviewEvents = events.filter(e => e.event_type === 'ai_overview_shown');
@@ -517,7 +591,7 @@ export const useDashboardData = () => {
           languageQueryPairs,
           englishQueries,
           indonesianQueries,
-          totalComparedQueries: maxLanguageRows,
+          totalComparedQueries: languageQueryPairs.length,
           totalEnCitations,
           totalIdCitations,
           enOutletCounts,
