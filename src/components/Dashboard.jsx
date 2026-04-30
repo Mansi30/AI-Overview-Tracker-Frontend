@@ -489,17 +489,17 @@ export const Dashboard = () => {
             ? activePairs.reduce((sum, p) => sum + (p.en?.citationCount || 0), 0)
             : (stats?.totalEnCitations || 0);
 
-          const displayInCitations = hasSelection
-            ? activePairs.reduce((sum, p) => sum + (p.in?.citationCount || 0), 0)
-            : (stats?.totalInCitations || 0);
+          const displayIdCitations = hasSelection
+            ? activePairs.reduce((sum, p) => sum + (p.id?.citationCount || 0), 0)
+            : (stats?.totalIdCitations || 0);
 
           const displayEnOutlets = hasSelection
             ? sumOutlets(activePairs, 'en')
             : stats?.enOutletCounts;
 
-          const displayInOutlets = hasSelection
-            ? sumOutlets(activePairs, 'in')
-            : stats?.inOutletCounts;
+          const displayIdOutlets = hasSelection
+            ? sumOutlets(activePairs, 'id')
+            : stats?.idOutletCounts;
 
           const displayPairs = allPairs.map((pair, idx) => ({ pair, idx }))
             .filter(({ idx }) => !hasSelection || selectedQueryPairIdxs.has(idx));
@@ -520,9 +520,9 @@ export const Dashboard = () => {
                   </p>
                 </div>
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <p className="text-sm text-gray-600">IN Total Citations</p>
+                  <p className="text-sm text-gray-600">ID Total Citations</p>
                   <p className="text-3xl font-bold text-emerald-700 mt-2">
-                    {displayInCitations}
+                    {displayIdCitations}
                   </p>
                 </div>
               </div>
@@ -567,7 +567,7 @@ export const Dashboard = () => {
               )}
 
               {/* Outlet Type Comparison Chart */}
-              {(displayEnOutlets || displayInOutlets) && (
+              {(displayEnOutlets || displayIdOutlets) && (
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Local vs Global Outlets by Language</h3>
                   <ResponsiveContainer width="100%" height={300}>
@@ -580,8 +580,8 @@ export const Dashboard = () => {
                         },
                         {
                           language: 'Indonesian',
-                          Local: displayInOutlets?.local || 0,
-                          Global: displayInOutlets?.global || 0
+                          Local: displayIdOutlets?.local || 0,
+                          Global: displayIdOutlets?.global || 0
                         }
                       ]}
                     >
@@ -598,7 +598,7 @@ export const Dashboard = () => {
               )}
 
               <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 EN and IN Queries (Expandable Citations)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 EN and ID Queries (Expandable Citations)</h3>
 
                 {displayPairs.length > 0 ? (
                   <table className="w-full text-sm min-w-[900px]">
@@ -683,32 +683,32 @@ export const Dashboard = () => {
                             )}
                           </td>
                           <td className="p-3">
-                            {pair.in ? (
+                            {pair.id ? (
                               <div>
                                 <button
-                                  onClick={() => toggleLanguageRow(`in-${idx}`)}
+                                  onClick={() => toggleLanguageRow(`id-${idx}`)}
                                   className="w-full text-left p-3 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
                                 >
                                   <div className="flex items-center justify-between gap-3">
-                                    <p className="font-medium text-gray-900 break-words">{pair.in.query}</p>
+                                    <p className="font-medium text-gray-900 break-words">{pair.id.query}</p>
                                     <div className="flex items-center gap-2 shrink-0">
                                       <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-900">
-                                        {pair.in.citationCount} citations
+                                        {pair.id.citationCount} citations
                                       </span>
                                       <span className="text-emerald-700 font-bold">
-                                        {expandedLanguageRows[`in-${idx}`] ? '−' : '+'}
+                                        {expandedLanguageRows[`id-${idx}`] ? '−' : '+'}
                                       </span>
                                     </div>
                                   </div>
                                 </button>
 
-                                {expandedLanguageRows[`in-${idx}`] && (
+                                {expandedLanguageRows[`id-${idx}`] && (
                                   <div className="mt-2 p-3 rounded-lg border border-emerald-100 bg-white">
                                     <p className="text-xs font-semibold text-emerald-700 mb-2">Citations</p>
-                                    {pair.in.citations.length > 0 ? (
+                                    {pair.id.citations.length > 0 ? (
                                       <ul className="space-y-2">
-                                        {pair.in.citations.map((citation, citationIdx) => (
-                                          <li key={`in-${idx}-${citationIdx}`} className="text-sm text-gray-700">
+                                        {pair.id.citations.map((citation, citationIdx) => (
+                                          <li key={`id-${idx}-${citationIdx}`} className="text-sm text-gray-700">
                                             <div className="flex items-start justify-between gap-2">
                                               <div className="min-w-0">
                                                 {citation.url ? (
@@ -756,7 +756,7 @@ export const Dashboard = () => {
                   </table>
                 ) : (
                   <p className="text-gray-500 text-center py-8">
-                    {allPairs.length > 0 ? 'No query pairs selected' : 'No EN/IN citation data available'}
+                    {allPairs.length > 0 ? 'No query pairs selected' : 'No EN/ID citation data available'}
                   </p>
                 )}
               </div>

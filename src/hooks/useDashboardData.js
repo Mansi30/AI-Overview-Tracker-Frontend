@@ -125,11 +125,11 @@ export const useDashboardData = () => {
         );
 
         if (role === 'admin') {
-          // Admin: fetch ALL user docs from events/en/in subcollections.
+          // Admin: fetch ALL user docs from events/en/id subcollections.
           const [eventsSnapshot, englishSnapshot, indonesianSnapshot] = await Promise.all([
             getDocs(collectionGroup(db, 'events')),
             getDocs(collectionGroup(db, 'en')),
-            getDocs(collectionGroup(db, 'in'))
+            getDocs(collectionGroup(db, 'id'))
           ]);
 
           events = eventsSnapshot.docs.map((snapshotDoc) => ({
@@ -147,14 +147,14 @@ export const useDashboardData = () => {
           indonesianComparisons = normalizeComparisonDocs(
             indonesianSnapshot,
             (snapshotDoc) => snapshotDoc.ref.parent.parent?.id || 'unknown',
-            'in'
+            'id'
           );
         } else {
-          // Regular user: fetch only docs under users/{uid}/events|en|in
+          // Regular user: fetch only docs under users/{uid}/events|en|id
           if (currentUserId) {
             const userEventsCollection = collection(db, 'users', currentUserId, 'events');
             const userEnglishCollection = collection(db, 'users', currentUserId, 'en');
-            const userIndonesianCollection = collection(db, 'users', currentUserId, 'in');
+            const userIndonesianCollection = collection(db, 'users', currentUserId, 'id');
 
             const [userEventsSnapshot, userEnglishSnapshot, userIndonesianSnapshot] = await Promise.all([
               getDocs(userEventsCollection),
@@ -177,12 +177,12 @@ export const useDashboardData = () => {
             indonesianComparisons = normalizeComparisonDocs(
               userIndonesianSnapshot,
               () => currentUserId,
-              'in'
+              'id'
             );
           }
         }
 
-        // Aggregate EN and IN citations into one row per query.
+        // Aggregate EN and ID citations into one row per query.
         const comparisonByQuery = {};
         const addComparisonData = (records, languageKey) => {
           records.forEach((record) => {
@@ -191,25 +191,25 @@ export const useDashboardData = () => {
               comparisonByQuery[normalizedQuery] = {
                 query: record.query,
                 enCitations: 0,
-                inCitations: 0
+                idCitations: 0
               };
             }
 
             if (languageKey === 'en') {
               comparisonByQuery[normalizedQuery].enCitations += record.citation_count;
-            } else {
-              comparisonByQuery[normalizedQuery].inCitations += record.citation_count;
+            } else if (languageKey === 'id') {
+              comparisonByQuery[normalizedQuery].idCitations += record.citation_count;
             }
           });
         };
 
         addComparisonData(englishComparisons, 'en');
-        addComparisonData(indonesianComparisons, 'in');
+        addComparisonData(indonesianComparisons, 'id');
 
         const languageComparisonRows = Object.values(comparisonByQuery)
           .map((row) => ({
             ...row,
-            totalCitations: row.enCitations + row.inCitations
+            totalCitations: row.enCitations + row.idCitations
           }))
           .sort((a, b) => b.totalCitations - a.totalCitations);
 
@@ -218,8 +218,8 @@ export const useDashboardData = () => {
           0
         );
 
-        const totalInCitations = languageComparisonRows.reduce(
-          (sum, row) => sum + row.inCitations,
+        const totalIdCitations = languageComparisonRows.reduce(
+          (sum, row) => sum + row.idCitations,
           0
         );
 
@@ -302,11 +302,11 @@ export const useDashboardData = () => {
         };
 
         const enOutletCounts = countOutletTypes(englishQueries);
-        const inOutletCounts = countOutletTypes(indonesianQueries);
+        const idOutletCounts = countOutletTypes(indonesianQueries);
         const maxLanguageRows = Math.max(englishQueries.length, indonesianQueries.length);
         const languageQueryPairs = Array.from({ length: maxLanguageRows }, (_, index) => ({
           en: englishQueries[index] || null,
-          in: indonesianQueries[index] || null
+          id: indonesianQueries[index] || null
         }));
 
         // Calculate statistics
@@ -519,9 +519,9 @@ export const useDashboardData = () => {
           indonesianQueries,
           totalComparedQueries: maxLanguageRows,
           totalEnCitations,
-          totalInCitations,
+          totalIdCitations,
           enOutletCounts,
-          inOutletCounts,
+          idOutletCounts,
           userRole: role,
           currentUserId: currentUserId,
 
