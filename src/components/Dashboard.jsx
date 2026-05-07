@@ -28,6 +28,16 @@ export const Dashboard = () => {
   const [dwellPage, setDwellPage] = useState(1);
   const [dwellPageSize] = useState(10);
   const [expandedLanguageRows, setExpandedLanguageRows] = useState({});
+  const [selectedQueryPairIdxs, setSelectedQueryPairIdxs] = useState(new Set());
+
+  const toggleQueryPairSelection = (idx) => {
+    setSelectedQueryPairIdxs((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   const toggleLanguageRow = (key) => {
     setExpandedLanguageRows((prev) => ({
@@ -35,6 +45,14 @@ export const Dashboard = () => {
       [key]: !prev[key]
     }));
   };
+
+  const countCitationsByType = (citations) =>
+    citations.reduce((acc, c) => {
+      const t = (c.classification || '').toLowerCase().trim();
+      if (t === 'local') acc.local++;
+      else if (t === 'global') acc.global++;
+      return acc;
+    }, { local: 0, global: 0 });
 
   const handleDeleteEvent = async (event, e) => {
     e.stopPropagation(); // Prevent event card click
@@ -452,188 +470,299 @@ export const Dashboard = () => {
         )}
 
         {/* LANGUAGE TAB */}
-        {activeTab === 'language' && (
-          <div className="space-y-8 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">Compared Queries</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  {stats?.totalComparedQueries || 0}
-                </p>
+        {activeTab === 'language' && (() => {
+          const hasSelection = selectedQueryPairIdxs.size > 0;
+          const allPairs = stats?.languageQueryPairs || [];
+          const activePairs = hasSelection
+            ? allPairs.filter((_, i) => selectedQueryPairIdxs.has(i))
+            : allPairs;
+
+          const sumOutlets = (pairs, lang) =>
+            pairs.reduce((acc, p) => {
+              const c = countCitationsByType(p[lang]?.citations || []);
+              acc.local += c.local;
+              acc.global += c.global;
+              return acc;
+            }, { local: 0, global: 0 });
+
+          const displayEnCitations = hasSelection
+            ? activePairs.reduce((sum, p) => sum + (p.en?.citationCount || 0), 0)
+            : (stats?.totalEnCitations || 0);
+
+          const displayIdCitations = hasSelection
+            ? activePairs.reduce((sum, p) => sum + (p.id?.citationCount || 0), 0)
+            : (stats?.totalIdCitations || 0);
+
+          const displayEnOutlets = hasSelection
+            ? sumOutlets(activePairs, 'en')
+            : stats?.enOutletCounts;
+
+          const displayIdOutlets = hasSelection
+            ? sumOutlets(activePairs, 'id')
+            : stats?.idOutletCounts;
+
+          const displayPairs = allPairs.map((pair, idx) => ({ pair, idx }))
+            .filter(({ idx }) => !hasSelection || selectedQueryPairIdxs.has(idx));
+
+          return (
+            <div className="space-y-8 animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <p className="text-sm text-gray-600">Compared Queries</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {stats?.totalComparedQueries || 0}
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <p className="text-sm text-gray-600">EN Total Citations</p>
+                  <p className="text-3xl font-bold text-blue-700 mt-2">
+                    {displayEnCitations}
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <p className="text-sm text-gray-600">ID Total Citations</p>
+                  <p className="text-3xl font-bold text-emerald-700 mt-2">
+                    {displayIdCitations}
+                  </p>
+                </div>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">EN Total Citations</p>
-                <p className="text-3xl font-bold text-blue-700 mt-2">
-                  {stats?.totalEnCitations || 0}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <p className="text-sm text-gray-600">IN Total Citations</p>
-                <p className="text-3xl font-bold text-emerald-700 mt-2">
-                  {stats?.totalInCitations || 0}
-                </p>
-              </div>
-            </div>
 
-            {/* Outlet Type Comparison Chart */}
-            {(stats?.enOutletCounts || stats?.inOutletCounts) && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Local vs Global Outlets by Language</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={[
-                      {
-                        language: 'English',
-                        Local: stats.enOutletCounts?.local || 0,
-                        Global: stats.enOutletCounts?.global || 0
-                      },
-                      {
-                        language: 'Indonesian',
-                        Local: stats.inOutletCounts?.local || 0,
-                        Global: stats.inOutletCounts?.global || 0
-                      }
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="language" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Local" fill="#f59e0b" />
-                    <Bar dataKey="Global" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">EN and IN Queries (Expandable Citations)</h3>
-
-              {stats?.languageQueryPairs && stats.languageQueryPairs.length > 0 ? (
-                <table className="w-full text-sm min-w-[900px]">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">English Query</th>
-                      <th className="text-left p-3 font-semibold text-gray-700 w-1/2">Indonesian Query</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.languageQueryPairs.map((pair, idx) => (
-                      <tr key={`pair-${idx}`} className="border-b align-top">
-                        <td className="p-3">
-                          {pair.en ? (
-                            <div>
-                              <button
-                                onClick={() => toggleLanguageRow(`en-${idx}`)}
-                                className="w-full text-left p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="font-medium text-gray-900 break-words">{pair.en.query}</p>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-200 text-blue-900">
-                                      {pair.en.citationCount} citations
-                                    </span>
-                                    <span className="text-blue-700 font-bold">
-                                      {expandedLanguageRows[`en-${idx}`] ? '−' : '+'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </button>
-
-                              {expandedLanguageRows[`en-${idx}`] && (
-                                <div className="mt-2 p-3 rounded-lg border border-blue-100 bg-white">
-                                  <p className="text-xs font-semibold text-blue-700 mb-2">Citations</p>
-                                  {pair.en.citations.length > 0 ? (
-                                    <ul className="space-y-2">
-                                      {pair.en.citations.map((citation, citationIdx) => (
-                                        <li key={`en-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
-                                          {citation.url ? (
-                                            <a
-                                              href={citation.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-blue-700 hover:underline"
-                                            >
-                                              {citation.label}
-                                            </a>
-                                          ) : (
-                                            <span>{citation.label}</span>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">No citation list available</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic p-3">No English query</p>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          {pair.in ? (
-                            <div>
-                              <button
-                                onClick={() => toggleLanguageRow(`in-${idx}`)}
-                                className="w-full text-left p-3 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="font-medium text-gray-900 break-words">{pair.in.query}</p>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-900">
-                                      {pair.in.citationCount} citations
-                                    </span>
-                                    <span className="text-emerald-700 font-bold">
-                                      {expandedLanguageRows[`in-${idx}`] ? '−' : '+'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </button>
-
-                              {expandedLanguageRows[`in-${idx}`] && (
-                                <div className="mt-2 p-3 rounded-lg border border-emerald-100 bg-white">
-                                  <p className="text-xs font-semibold text-emerald-700 mb-2">Citations</p>
-                                  {pair.in.citations.length > 0 ? (
-                                    <ul className="space-y-2">
-                                      {pair.in.citations.map((citation, citationIdx) => (
-                                        <li key={`in-${idx}-${citationIdx}`} className="text-sm text-gray-700 break-words">
-                                          {citation.url ? (
-                                            <a
-                                              href={citation.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-emerald-700 hover:underline"
-                                            >
-                                              {citation.label}
-                                            </a>
-                                          ) : (
-                                            <span>{citation.label}</span>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">No citation list available</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic p-3">No Indonesian query</p>
-                          )}
-                        </td>
-                      </tr>
+              {/* Query pair selector */}
+              {allPairs.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-medium text-gray-700">
+                      Filter by query pair{hasSelection ? ` (${selectedQueryPairIdxs.size} selected)` : ''}:
+                    </label>
+                    {hasSelection && (
+                      <button
+                        onClick={() => setSelectedQueryPairIdxs(new Set())}
+                        className="text-xs text-gray-500 hover:text-gray-800 underline"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                    {allPairs.map((pair, idx) => (
+                      <label
+                        key={idx}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs cursor-pointer transition-colors ${
+                          selectedQueryPairIdxs.has(idx)
+                            ? 'bg-primary-100 border-primary-400 text-primary-800 font-medium'
+                            : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={selectedQueryPairIdxs.has(idx)}
+                          onChange={() => toggleQueryPairSelection(idx)}
+                        />
+                        {pair.en?.query || '(no EN)'}
+                      </label>
                     ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No EN/IN citation data available</p>
+                  </div>
+                </div>
               )}
+
+              {/* Outlet Type Comparison Chart */}
+              {(displayEnOutlets || displayIdOutlets) && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Local vs Global Outlets by Language</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={[
+                        {
+                          language: 'English',
+                          Local: displayEnOutlets?.local || 0,
+                          Global: displayEnOutlets?.global || 0
+                        },
+                        {
+                          language: 'Indonesian',
+                          Local: displayIdOutlets?.local || 0,
+                          Global: displayIdOutlets?.global || 0
+                        }
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="language" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Local" fill="#f59e0b" />
+                      <Bar dataKey="Global" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">EN and ID Queries (Expandable Citations)</h3>
+
+                {displayPairs.length > 0 ? (
+                  <table className="w-full text-sm min-w-[900px]">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left p-3 font-semibold text-gray-700 w-1/2">English Query</th>
+                        <th className="text-left p-3 font-semibold text-gray-700 w-1/2">Indonesian Query</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayPairs.map(({ pair, idx }) => (
+                        <tr
+                          key={`pair-${idx}`}
+                          className="border-b align-top"
+                        >
+                          <td className="p-3">
+                            {pair.en ? (
+                              <div>
+                                <button
+                                  onClick={() => toggleLanguageRow(`en-${idx}`)}
+                                  className="w-full text-left p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="font-medium text-gray-900 break-words">{pair.en.query}</p>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-200 text-blue-900">
+                                        {pair.en.citationCount} citations
+                                      </span>
+                                      <span className="text-blue-700 font-bold">
+                                        {expandedLanguageRows[`en-${idx}`] ? '−' : '+'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {expandedLanguageRows[`en-${idx}`] && (
+                                  <div className="mt-2 p-3 rounded-lg border border-blue-100 bg-white">
+                                    <p className="text-xs font-semibold text-blue-700 mb-2">Citations</p>
+                                    {pair.en.citations.length > 0 ? (
+                                      <ul className="space-y-2">
+                                        {pair.en.citations.map((citation, citationIdx) => (
+                                          <li key={`en-${idx}-${citationIdx}`} className="text-sm text-gray-700">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="min-w-0">
+                                                {citation.url ? (
+                                                  <a
+                                                    href={citation.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-700 hover:underline break-words"
+                                                  >
+                                                    {citation.label}
+                                                  </a>
+                                                ) : (
+                                                  <span className="break-words">{citation.label}</span>
+                                                )}
+                                                {citation.url && (
+                                                  <p className="text-xs text-gray-400 break-all mt-0.5">{citation.url}</p>
+                                                )}
+                                              </div>
+                                              {citation.classification && (
+                                                <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                                  citation.classification.toLowerCase() === 'local'
+                                                    ? 'bg-amber-100 text-amber-800'
+                                                    : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                  {citation.classification}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">No citation list available</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400 italic p-3">No English query</p>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {pair.id ? (
+                              <div>
+                                <button
+                                  onClick={() => toggleLanguageRow(`id-${idx}`)}
+                                  className="w-full text-left p-3 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="font-medium text-gray-900 break-words">{pair.id.query}</p>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-900">
+                                        {pair.id.citationCount} citations
+                                      </span>
+                                      <span className="text-emerald-700 font-bold">
+                                        {expandedLanguageRows[`id-${idx}`] ? '−' : '+'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {expandedLanguageRows[`id-${idx}`] && (
+                                  <div className="mt-2 p-3 rounded-lg border border-emerald-100 bg-white">
+                                    <p className="text-xs font-semibold text-emerald-700 mb-2">Citations</p>
+                                    {pair.id.citations.length > 0 ? (
+                                      <ul className="space-y-2">
+                                        {pair.id.citations.map((citation, citationIdx) => (
+                                          <li key={`id-${idx}-${citationIdx}`} className="text-sm text-gray-700">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="min-w-0">
+                                                {citation.url ? (
+                                                  <a
+                                                    href={citation.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-emerald-700 hover:underline break-words"
+                                                  >
+                                                    {citation.label}
+                                                  </a>
+                                                ) : (
+                                                  <span className="break-words">{citation.label}</span>
+                                                )}
+                                                {citation.url && (
+                                                  <p className="text-xs text-gray-400 break-all mt-0.5">{citation.url}</p>
+                                                )}
+                                              </div>
+                                              {citation.classification && (
+                                                <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                                  citation.classification.toLowerCase() === 'local'
+                                                    ? 'bg-amber-100 text-amber-800'
+                                                    : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                  {citation.classification}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">No citation list available</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400 italic p-3">No Indonesian query</p>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">
+                    {allPairs.length > 0 ? 'No query pairs selected' : 'No EN/ID citation data available'}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TIMELINE TAB with 3 Views */}
         {activeTab === 'timeline' && (
