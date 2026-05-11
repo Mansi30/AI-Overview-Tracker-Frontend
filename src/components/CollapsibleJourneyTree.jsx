@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
 const TreeNode = ({ node, level = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand first 2 levels
@@ -7,7 +7,6 @@ const TreeNode = ({ node, level = 0 }) => {
   const hasChildren = node.children && node.children.length > 0;
   const domain = node.url ? extractDomain(node.url) : 'Unknown';
   const path = node.url ? extractPath(node.url) : '';
-  const dwellSeconds = node.dwell_time_ms ? (node.dwell_time_ms / 1000).toFixed(1) : '0';
 
   function extractDomain(url) {
     try {
@@ -69,12 +68,6 @@ const TreeNode = ({ node, level = 0 }) => {
           )}
         </div>
 
-        {/* Dwell Time */}
-        <div className="flex items-center gap-1 text-gray-600">
-          <Clock size={14} />
-          <span className="text-sm font-medium">{dwellSeconds}s</span>
-        </div>
-
         {/* Visit Link */}
         {node.url && (
           <a
@@ -93,7 +86,11 @@ const TreeNode = ({ node, level = 0 }) => {
       {hasChildren && isExpanded && (
         <div className="mt-1">
           {node.children.map((child, idx) => (
-            <TreeNode key={idx} node={child} level={level + 1} />
+            <TreeNode
+              key={idx}
+              node={child}
+              level={level + 1}
+            />
           ))}
         </div>
       )}
@@ -147,7 +144,10 @@ const CollapsibleJourneyTree = ({ journeyData }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Navigation Path
         </h3>
-        <TreeNode node={journeyData.navigation_tree} level={0} />
+        <TreeNode
+          node={journeyData.navigation_tree}
+          level={0}
+        />
       </div>
     </div>
   );
