@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Search, Link, Clock, Zap,
-  RefreshCw, Eye, MousePointerClick, ExternalLink, X, Trash2
+  RefreshCw, Eye, MousePointerClick, ExternalLink, X, Trash2, User
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -140,17 +140,17 @@ export const Dashboard = () => {
   };
 
   const topicIcons = {
-    technology: '💻',
-    business: '💼',
-    politics: '🏛️',
-    entertainment: '🎬',
-    sports: '⚽',
-    health: '🏥',
-    science: '🔬',
-    finance: '💰',
-    education: '🎓',
-    travel: '✈️',
-    general: '📌'
+    technology: 'Tech',
+    business: 'Business',
+    politics: 'Politics',
+    entertainment: 'Entertainment',
+    sports: 'Sports',
+    health: 'Health',
+    science: 'Science',
+    finance: 'Finance',
+    education: 'Education',
+    travel: 'Travel',
+    general: 'General'
   };
 
   const COLORS = Object.values(topicColors);
@@ -248,7 +248,7 @@ export const Dashboard = () => {
 
             {stats?.dailyStats && stats.dailyStats.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📈 Daily Activity Trend</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={stats.dailyStats}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -288,7 +288,7 @@ export const Dashboard = () => {
               </div>
 
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Domain CTR Analysis</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Domain CTR Analysis</h3>
                 {stats?.domains && stats.domains.length > 0 ? (
                   <div className="space-y-3">
                     {stats.domains.slice(0, 8).map((d, idx) => (
@@ -316,7 +316,7 @@ export const Dashboard = () => {
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Domain Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Domain Details</h3>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
@@ -357,7 +357,7 @@ export const Dashboard = () => {
                 </tbody>
               </table>
               <p className="text-xs text-gray-500 mt-4">
-                💡 <strong>Tip:</strong> Click "View All URLs" to see every citation URL for that domain.
+                <strong>Tip:</strong> Click "View All URLs" to see every citation URL for that domain.
               </p>
             </div>
 
@@ -396,7 +396,7 @@ export const Dashboard = () => {
           <div className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🏷️ Query Topic Distribution</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Query Topic Distribution</h3>
                 {stats?.queryTopics && Object.keys(stats.queryTopics).length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -426,7 +426,7 @@ export const Dashboard = () => {
               </div>
 
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Topic Breakdown</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Topic Breakdown</h3>
                 <div className="space-y-3">
                   {stats?.queryTopics && Object.entries(stats.queryTopics)
                     .sort((a, b) => b[1].count - a[1].count)
@@ -437,7 +437,7 @@ export const Dashboard = () => {
                       style={{ backgroundColor: `${topicColors[topic]}15` }}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{topicIcons[topic] || '📌'}</span>
+                        <span className="text-2xl">{topicIcons[topic] || 'General'}</span>
                         <div>
                           <p className="font-medium text-gray-900 capitalize">{topic}</p>
                           <p className="text-xs text-gray-500">Search queries</p>
@@ -569,7 +569,7 @@ export const Dashboard = () => {
               {/* Outlet Type Comparison Chart */}
               {(displayEnOutlets || displayIdOutlets) && (
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Local vs Global Outlets by Language</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Local vs Global Outlets by Language</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
                       data={[
@@ -598,7 +598,7 @@ export const Dashboard = () => {
               )}
 
               <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-x-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 EN and ID Queries (Expandable Citations)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">EN and ID Queries (Expandable Citations)</h3>
 
                 {displayPairs.length > 0 ? (
                   <table className="w-full text-sm min-w-[900px]">
@@ -778,7 +778,7 @@ export const Dashboard = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  📋 All Events
+                  All Events
                 </button>
                 {userRole === 'admin' && (
                   <button
@@ -789,7 +789,7 @@ export const Dashboard = () => {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    👤 By User
+                    By User
                   </button>
                 )}
                 <button
@@ -800,7 +800,7 @@ export const Dashboard = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  🏷️ By Topic
+                  By Topic
                 </button>
                 <button
                   onClick={() => setTimelineView('byDwell')}
@@ -818,7 +818,12 @@ export const Dashboard = () => {
             {/* ALL EVENTS VIEW */}
             {timelineView === 'all' && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">📅 All Events Timeline</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">All Events Timeline</h3>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                    Sorted: Most Recent First
+                  </span>
+                </div>
                 <div className="space-y-4">
                   {stats?.recentEvents && stats.recentEvents.length > 0 ? (
                     stats.recentEvents.map((event, idx) => (
@@ -841,9 +846,9 @@ export const Dashboard = () => {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <p className="font-semibold text-gray-900">
-                                {event.event_type === 'ai_overview_shown' ? '🤖 AI Overview' :
-                                 event.event_type === 'citation_clicked' ? 'Click Citation Clicked' :
-                                 'Search: Search (No Overview)'}
+                                {event.event_type === 'ai_overview_shown' ? 'AI Overview' :
+                                 event.event_type === 'citation_clicked' ? 'Citation Clicked' :
+                                 'Search (No Overview)'}
                               </p>
                               {event.query_topic && (
                                 <span 
@@ -908,7 +913,7 @@ export const Dashboard = () => {
                           </div>
                         )}
                         {event.event_type === 'ai_overview_shown' && (
-                          <p className="text-xs text-blue-600 mt-2">💡 Click to view full details →</p>
+                          <p className="text-xs text-blue-600 mt-2">Click to view full details</p>
                         )}
                         {event.event_type === 'citation_clicked' && (
                           <p className="text-xs text-green-600 mt-2">Link: Click to visit this citation URL →</p>
@@ -932,7 +937,7 @@ export const Dashboard = () => {
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex-1 min-w-[250px]">
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            👤 Select User to View
+                            Select User to View
                           </label>
                           <select
                             value={selectedUserId}
@@ -1098,7 +1103,7 @@ export const Dashboard = () => {
                                   </div>
                                 </div>
                                 {event.event_type === 'ai_overview_shown' && (
-                                  <p className="text-xs text-blue-600 mt-3">💡 Click to view full AI Overview details</p>
+                                  <p className="text-xs text-blue-600 mt-3">Click to view full AI Overview details</p>
                                 )}
                                 {event.event_type === 'citation_clicked' && (
                                   <p className="text-xs text-green-600 mt-3">Link: Click to visit this citation URL</p>
@@ -1112,7 +1117,7 @@ export const Dashboard = () => {
                       <div className="bg-white rounded-lg border border-gray-200 p-12">
                         <div className="text-center">
                           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-4xl">👤</span>
+                            <User className="text-gray-400" size={40} />
                           </div>
                           <p className="text-gray-600 text-lg font-medium">Select a user from the dropdown above</p>
                           <p className="text-gray-500 text-sm mt-2">Choose a user to view their complete activity timeline</p>
@@ -1142,7 +1147,7 @@ export const Dashboard = () => {
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-3xl">{topicIcons[topic] || '📌'}</span>
+                          <span className="text-3xl">{topicIcons[topic] || 'General'}</span>
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900 capitalize">{topic}</h3>
                             <p className="text-sm text-gray-600">{topicEvents.length} events</p>
@@ -1196,7 +1201,7 @@ export const Dashboard = () => {
                                 )}
                                 {event.event_type === 'ai_overview_shown' && (
                                   <p className="text-xs text-blue-600 mt-1">
-                                    💡 Click to view AI Overview details
+                                    Click to view AI Overview details
                                   </p>
                                 )}
                               </div>
@@ -1388,7 +1393,7 @@ export const Dashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Journey Depth Distribution */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Journey Depth Distribution</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Journey Depth Distribution</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={(() => {
                       const depthCounts = {};
@@ -1475,7 +1480,7 @@ export const Dashboard = () => {
 
                 {/* Pages per Journey Distribution */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📄 Pages per Journey</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Pages per Journey</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={(() => {
                       const pageCounts = {};
@@ -1510,16 +1515,16 @@ export const Dashboard = () => {
 
             {stats?.journeys && stats.journeys.length > 0 ? (
               <div className="space-y-6">
-                {stats.journeys.slice(0, 10).map((journey, idx) => (
+                {stats.journeys
+                  .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+                  .slice(0, 10)
+                  .map((journey, idx) => (
                   <div key={idx} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
-                          Journey #{stats.journeys.length - idx}
+                          "{journey.query}"
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Query: <span className="font-medium">"{journey.query}"</span>
-                        </p>
                         <p className="text-xs text-gray-500 mt-1">
                           Started: {new Date(journey.started_at).toLocaleString()}
                         </p>
@@ -1697,7 +1702,7 @@ export const Dashboard = () => {
                   </p>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  💡 Response text has been cleaned for readability
+                  Response text has been cleaned for readability
                 </p>
               </div>
             </div>

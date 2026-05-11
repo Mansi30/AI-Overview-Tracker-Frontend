@@ -584,7 +584,9 @@ export const useDashboardData = () => {
           dailyStats,
           avgTimeToClick,
           totalEvents: events.length,
-          recentEvents: displayEvents.slice(-50).reverse(), // Show more recent events (excluding dwell)
+          recentEvents: displayEvents
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by timestamp DESC
+            .slice(0, 50), // Take first 50 (most recent)
           eventsByUser: role === 'admin' ? eventsByUser : {}, // Only for admin
           eventsByTopic,
           languageComparisonRows,
@@ -612,10 +614,10 @@ export const useDashboardData = () => {
           })),
           totalJourneys: journeyEvents.length,
           avgJourneyDepth: journeyEvents.length > 0
-            ? (journeyEvents.reduce((sum, j) => sum + (j.summary?.max_depth || 0), 0) / journeyEvents.length).toFixed(1)
+            ? Math.round(journeyEvents.reduce((sum, j) => sum + (j.summary?.max_depth || 0), 0) / journeyEvents.length)
             : 0,
           avgJourneyPages: journeyEvents.length > 0
-            ? (journeyEvents.reduce((sum, j) => sum + (j.summary?.total_pages_visited || 0), 0) / journeyEvents.length).toFixed(1)
+            ? Math.round(journeyEvents.reduce((sum, j) => sum + (j.summary?.total_pages_visited || 0), 0) / journeyEvents.length)
             : 0
         });
 
